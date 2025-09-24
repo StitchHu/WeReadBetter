@@ -43,11 +43,11 @@ const url3 = GM_getResourceURL("myImage3");
       readerButtonColor: '#4F4F4F', //按钮 
       fontFamily: 'cejkpx'
     },
-    //纯色背景
+    //纯色背景：无url
     {
       name: '莫兰迪米绿',
-      readerBgColor: '#DDE7D0', //纯色背景
-      textColor: '#2B2B2B',
+      readerBgColor: '#D6DBBC', //纯色背景
+      textColor: '#474E31',
       backgroundColor: '#C8D6B8',
       readerButtonColor: '#4E7B50',
       fontFamily: 'wr_default_fontspx'
@@ -660,20 +660,35 @@ const url3 = GM_getResourceURL("myImage3");
 // ==============================
   function setupTopBarAutoHide() {
     const topBar = document.querySelector('.readerTopBar');
+    const controls = document.querySelector('.readerControls');
+
     if (!topBar) return;
+    if (!controls) return;
 
     let lastScrollY = window.scrollY;
     let ticking = false;
 
+    // 给控制栏初始过渡属性
+    controls.style.opacity = '1';
+    controls.style.transition = 'opacity 1s ease, transform 1s ease';
+    controls.style.willChange = 'opacity, transform';
+
     function onScroll() {
       const currentY = window.scrollY;
-      // 向下滚动且超过一定距离 → 隐藏
+      // 向下滚动且超过一定距离-隐藏顶部栏
       if (currentY > lastScrollY && currentY > 60) {
         topBar.style.transform = 'translateY(-100%)';
         topBar.style.transition = 'transform 0.3s ease';
+
+      // 隐藏控制栏
+        controls.style.transform = 'translateX(120%)'; // 向右平移到视窗外
+        controls.style.opacity = '0';
+        controls.style.transform = 'translateX(40px)';
       } else {
         // 向上滚动 → 显示
         topBar.style.transform = 'translateY(0)';
+        controls.style.opacity = '1';
+        controls.style.transform = 'translateX(0)';
       }
       lastScrollY = currentY;
       ticking = false;
