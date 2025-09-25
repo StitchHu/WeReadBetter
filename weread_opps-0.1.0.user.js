@@ -18,6 +18,212 @@ const url3 = GM_getResourceURL("myImage3");
 
 (function () {
   'use strict';
+//==============================
+// ============公共类：控制栏按钮创建=================
+//==============================
+function createButton(btn_class_name, svg_url, btn_tips) {
+  const controls = document.querySelector('.readerControls');
+  if (!controls || controls.querySelector('.' + btn_class_name)) return null;
+
+  // 创建容器
+  const wr_tooltip_container = document.createElement('div');
+  wr_tooltip_container.className = 'wr_tooltip_container';
+  wr_tooltip_container.setAttribute('style', '--offset: 6px;');
+
+  // 创建按钮
+  const btn = document.createElement('button');
+  btn.className = btn_class_name + ' readerControls_item';
+  btn.innerHTML = svg_url;
+
+  wr_tooltip_container.appendChild(btn);
+
+  // 创建提示框
+  const tips = document.createElement('div');
+  tips.className = 'wr_tooltip_item wr_tooltip_item--right';
+  tips.style.display = 'none';
+  tips.textContent = btn_tips;
+
+  wr_tooltip_container.appendChild(tips);
+
+  // 添加事件监听器
+  wr_tooltip_container.addEventListener('mouseenter', () => {
+    tips.style.display = 'block'; 
+  });
+  wr_tooltip_container.addEventListener('mouseleave', () => {
+    tips.style.display = 'none';
+  });
+
+  controls.appendChild(wr_tooltip_container);
+  return btn;
+}
+
+
+// 自定义提示系统的CSS样式
+GM_addStyle(`
+  /* 自定义提示框样式 */
+  .custom-tooltip {
+    position: absolute;
+    background: rgba(0, 0, 0, 0.9);
+    color: white;
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 500;
+    white-space: nowrap;
+    z-index: 10000;
+    pointer-events: none;
+    opacity: 0;
+    transform: translateX(10px);
+    transition: all 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+  
+  .custom-tooltip.show {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  
+  /* 提示框箭头 */
+  .custom-tooltip::before {
+    content: '';
+    position: absolute;
+    left: -6px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 0;
+    height: 0;
+    border-style: solid;
+    border-width: 6px 6px 6px 0;
+    border-color: transparent rgba(0, 0, 0, 0.9) transparent transparent;
+  }
+  
+  /* 深色模式适配 */
+  @media (prefers-color-scheme: dark) {
+    .custom-tooltip {
+      background: rgba(40, 40, 40, 0.95);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+    .custom-tooltip::before {
+      border-color: transparent rgba(40, 40, 40, 0.95) transparent transparent;
+    }
+  }
+  
+  /* 美化版提示框 */
+  .custom-tooltip.premium {
+    background: linear-gradient(135deg, rgba(0, 0, 0, 0.9) 0%, rgba(40, 40, 40, 0.9) 100%);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    letter-spacing: 0.3px;
+  }
+`);
+
+// 创建和管理提示框的类
+class CustomTooltip {
+  constructor() {
+    this.tooltip = null;
+    this.showTimeout = null;
+    this.hideTimeout = null;
+  }
+  
+  // 创建提示框元素
+  createTooltip() {
+    if (this.tooltip) return this.tooltip;
+    
+    this.tooltip = document.createElement('div');
+    this.tooltip.className = 'custom-tooltip premium';
+    document.body.appendChild(this.tooltip);
+    return this.tooltip;
+  }
+  
+  // 显示提示框
+  show(element, text, delay = 500) {
+    clearTimeout(this.hideTimeout);
+    
+    this.showTimeout = setTimeout(() => {
+      const tooltip = this.createTooltip();
+      tooltip.textContent = text;
+      
+      // 计算位置
+      const rect = element.getBoundingClientRect();
+      const tooltipWidth = tooltip.offsetWidth;
+      const tooltipHeight = tooltip.offsetHeight;
+      
+      // 基础位置：按钮右侧
+      let left = rect.right + 12;
+      let top = rect.top + (rect.height / 2) - (tooltipHeight / 2);
+      
+      // 边界检测和调整
+      const windowWidth = window.innerWidth;
+      const windowHeight = window.innerHeight;
+      
+      // 右边界检测
+      if (left + tooltipWidth > windowWidth - 10) {
+        left = rect.left - tooltipWidth - 12; // 显示在左侧
+        tooltip.style.setProperty('--arrow-position', 'right');
+      }
+      
+      // 上下边界检测
+      if (top < 10) {
+        top = 10;
+      } else if (top + tooltipHeight > windowHeight - 10) {
+        top = windowHeight - tooltipHeight - 10;
+      }
+      
+      tooltip.style.left = left + 'px';
+      tooltip.style.top = top + 'px';
+      
+      // 显示动画
+      requestAnimationFrame(() => {
+        tooltip.classList.add('show');
+      });
+    }, delay);
+  }
+  
+  // 隐藏提示框
+  hide(delay = 100) {
+    clearTimeout(this.showTimeout);
+    
+    this.hideTimeout = setTimeout(() => {
+      if (this.tooltip) {
+        this.tooltip.classList.remove('show');
+        setTimeout(() => {
+          if (this.tooltip && this.tooltip.parentNode) {
+            this.tooltip.parentNode.removeChild(this.tooltip);
+            this.tooltip = null;
+          }
+        }, 300);
+      }
+    }, delay);
+  }
+}
+
+// 创建全局提示管理器
+const tooltipManager = new CustomTooltip();
+
+// 为元素添加自定义提示的函数
+function addCustomTooltip(element, text) {
+  if (!element) return;
+  
+  // 移除原有的title属性，避免冲突
+  element.removeAttribute('title');
+  
+  element.addEventListener('mouseenter', () => {
+    console.log("mouseenter")
+    tooltipManager.show(element, text);
+  });
+  
+  element.addEventListener('mouseleave', () => {
+    console.log("mouseleave")
+    tooltipManager.hide();
+  });
+  
+  // 当元素被移除时也隐藏提示
+  element.addEventListener('DOMNodeRemoved', () => {
+    tooltipManager.hide(0);
+  });
+}
 
 //==============================
 // ============新增阅读主题按钮=================
@@ -350,15 +556,13 @@ const url3 = GM_getResourceURL("myImage3");
    * 创建按钮
    ********************/
   function createBackgroundButton() {
-    const controls = document.querySelector('.readerControls');
-    if (!controls || controls.querySelector('.bg-select-btn')) return;
-
-    const btn = document.createElement('button');
-    btn.className = 'bg-select-btn readerControls_item';
-    btn.innerHTML = `
-<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-book-image-icon lucide-book-image"><path d="m20 13.7-2.1-2.1a2 2 0 0 0-2.8 0L9.7 17"/><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H19a1 1 0 0 1 1 1v18a1 1 0 0 1-1 1H6.5a1 1 0 0 1 0-5H20"/><circle cx="10" cy="8" r="2"/></svg>    `;
-    btn.addEventListener('click', openModal);
-    controls.appendChild(btn);
+    const svg = `
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-book-image-icon lucide-book-image"><path d="m20 13.7-2.1-2.1a2 2 0 0 0-2.8 0L9.7 17"/><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H19a1 1 0 0 1 1 1v18a1 1 0 0 1-1 1H6.5a1 1 0 0 1 0-5H20"/><circle cx="10" cy="8" r="2"/></svg>
+      `
+    const btn = createButton('bg-select-btn', svg, '切换主题');
+    if (btn) {
+      btn.addEventListener('click', openModal);
+    }
   }
 
   /********************
@@ -536,7 +740,6 @@ const url3 = GM_getResourceURL("myImage3");
       font-size: 18px;
       border-radius: 50%;
       transition: background-color 0.2s;
-      margin-bottom: 24px;
       color: #868C96; /* 默认颜色 */
     }
     .auto-scroll-btn:hover {
@@ -584,17 +787,19 @@ const url3 = GM_getResourceURL("myImage3");
   /********************
    * 在阅读工具栏插入按钮
    ********************/
+  // 创建自动滚动按钮
   function createAutoScrollButton() {
-    const controls = document.querySelector('.readerControls');
-    if (!controls || controls.querySelector('.auto-scroll-btn')) return;
-
-    const btn = document.createElement('button');
-    btn.className = 'auto-scroll-btn readerControls_item';
-    btn.innerHTML = `
-<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-down-to-dot-icon lucide-arrow-down-to-dot"><path d="M12 2v14"/><path d="m19 9-7 7-7-7"/><circle cx="12" cy="21" r="1"/></svg>    `;
-    btn.addEventListener('click', () => toggleScroll(btn));
-
-    controls.appendChild(btn);
+    const svg = `
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M12 2v14"/>
+    <path d="m19 9-7 7-7-7"/>
+    <circle cx="12" cy="21" r="1"/>
+  </svg>`;
+    
+    const btn = createButton('auto-scroll-btn', svg, '自动滚动');
+    if (btn) {
+      btn.addEventListener('click', () => toggleScroll(btn));
+    }
   }
 
 //==============================
@@ -636,72 +841,113 @@ const url3 = GM_getResourceURL("myImage3");
     }
   }
 
-  //==============================
-  // 2. 创建按钮并注入
-  //==============================
-  function createFullscreenButton() {
-    const controls = document.querySelector('.readerControls');
-    if (!controls || document.getElementById('fullscreenToggleButton')) return;
-
-    const btn = document.createElement('button');
-    btn.innerHTML = `
-<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-fullscreen-icon lucide-fullscreen"><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/><rect width="10" height="8" x="7" y="8" rx="1"/></svg>    `;
-    btn.id = 'fullscreenToggleButton';
-    btn.className = 'full-screen-btn readerControls_item';
-    btn.title = '切换全屏阅读';
+// 使用修复后的函数创建全屏按钮
+function createFullscreenButton() {
+  const svg = `
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-fullscreen-icon lucide-fullscreen"><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/><rect width="10" height="8" x="7" y="8" rx="1"/>
+        </svg>`;
+  const btn = createButton('full-screen-btn', svg, '沉浸式');
+  if (btn) {
     btn.addEventListener('click', toggleFullscreen);
-    controls.appendChild(btn);
-    console.log('全屏按钮已添加');
   }
-
+}
 
 // ==============================
-// 功能：实现顶部栏下滑自动隐藏/上滑显示
+// 功能：双向渐变的顶部栏滚动隐藏/显示
 // ==============================
-  function setupTopBarAutoHide() {
-    const topBar = document.querySelector('.readerTopBar');
-    const controls = document.querySelector('.readerControls');
+function setupTopBarAutoHide() {
+  const topBar = document.querySelector('.readerTopBar');
+  const controls = document.querySelector('.readerControls');
 
-    if (!topBar) return;
-    if (!controls) return;
+  if (!topBar) return;
+  if (!controls) return;
 
-    let lastScrollY = window.scrollY;
-    let ticking = false;
+  let lastScrollY = window.scrollY;
+  let baseScrollY = window.scrollY; // 基准滚动位置
+  let currentState = 'visible'; // 'visible', 'hiding', 'hidden', 'showing'
+  let ticking = false;
+  
+  const HIDE_THRESHOLD = 30;   // 向下滚动开始隐藏的距离
+  const HIDE_DISTANCE = 50;    // 完全隐藏需要的滚动距离
+  const SHOW_THRESHOLD = 30;    // 向上滚动开始显示的距离
+  const SHOW_DISTANCE = 50;    // 完全显示需要的滚动距离
 
-    // 给控制栏初始过渡属性
-    controls.style.opacity = '1';
-    controls.style.transition = 'opacity 1s ease, transform 1s ease';
-    controls.style.willChange = 'opacity, transform';
+  // 设置过渡属性:可调节动画效果
+  controls.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
+  topBar.style.transition = 'transform 0.3s ease';
+  controls.style.willChange = 'opacity, transform';
 
-    function onScroll() {
-      const currentY = window.scrollY;
-      // 向下滚动且超过一定距离-隐藏顶部栏
-      if (currentY > lastScrollY && currentY > 60) {
-        topBar.style.transform = 'translateY(-100%)';
-        topBar.style.transition = 'transform 0.3s ease';
-
-      // 隐藏控制栏
-        controls.style.transform = 'translateX(120%)'; // 向右平移到视窗外
-        controls.style.opacity = '0';
-        controls.style.transform = 'translateX(40px)';
-      } else {
-        // 向上滚动 → 显示
-        topBar.style.transform = 'translateY(0)';
-        controls.style.opacity = '1';
-        controls.style.transform = 'translateX(0)';
+  function onScroll() {
+    const currentY = window.scrollY;
+    const scrollDelta = currentY - lastScrollY;
+    const relativeScroll = currentY - baseScrollY;
+    
+    // 向下滚动逻辑
+    if (scrollDelta > 0) {
+      // 如果当前是显示状态或正在显示，切换到隐藏模式
+      if (currentState === 'visible' || currentState === 'showing') {
+        baseScrollY = currentY;
+        currentState = 'hiding';
       }
-      lastScrollY = currentY;
-      ticking = false;
+      
+      // 计算隐藏进度
+      if (currentState === 'hiding' || currentState === 'hidden') {
+        const hideScroll = currentY - baseScrollY;
+        
+        if (hideScroll > HIDE_THRESHOLD) {
+          const hideProgress = Math.min((hideScroll - HIDE_THRESHOLD) / HIDE_DISTANCE, 1);
+          
+          // 应用隐藏变换
+          topBar.style.transform = `translateY(${-100 * hideProgress}%)`;
+          // 隐藏进度时
+          controls.style.opacity = 1 - hideProgress;
+          controls.style.transform = 'none';   // 不再水平移动
+          
+          if (hideProgress >= 1) {
+            currentState = 'hidden';
+          }
+        }
+      }
     }
-
-    // 使用 requestAnimationFrame 减少性能开销
-    window.addEventListener('scroll', () => {
-      if (!ticking) {
-        window.requestAnimationFrame(onScroll);
-        ticking = true;
+    // 向上滚动逻辑
+    else if (scrollDelta < 0) {
+      // 如果当前是隐藏状态或正在隐藏，切换到显示模式
+      if (currentState === 'hidden' || currentState === 'hiding') {
+        baseScrollY = currentY;
+        currentState = 'showing';
       }
-    });
+      
+      // 计算显示进度
+      if (currentState === 'showing' || currentState === 'visible') {
+        const showScroll = baseScrollY - currentY; // 注意：这里是反向计算
+        
+        if (showScroll > SHOW_THRESHOLD) {
+          const showProgress = Math.min((showScroll - SHOW_THRESHOLD) / SHOW_DISTANCE, 1);
+          
+          // 应用显示变换（从隐藏状态逐渐显示）
+          const hideProgress = 1 - showProgress;
+          topBar.style.transform = `translateY(${-100 * hideProgress}%)`;
+          controls.style.opacity = 1 - hideProgress;
+          controls.style.transform = 'none';   // 不再水平移动
+          
+          if (showProgress >= 1) {
+            currentState = 'visible';
+          }
+        }
+      }
+    }
+    
+    lastScrollY = currentY;
+    ticking = false;
   }
+
+  window.addEventListener('scroll', () => {
+    if (!ticking) {
+      window.requestAnimationFrame(onScroll);
+      ticking = true;
+    }
+  });
+}
 
 //==============================
 // ============新增阅读栏宽度调节按钮=================
@@ -838,34 +1084,29 @@ function updateWidthButtonsState(currentWidth, minWidth, maxWidth) {
   }
 }
 
-// 创建减宽按钮
 function createDecreaseWidthButton() {
-  const controls = document.querySelector('.readerControls');
-  if (!controls || controls.querySelector('.width-decrease-btn')) return;
-
-  const btn = document.createElement('button');
-  btn.className = 'width-control-btn width-decrease-btn readerControls_item';
-  btn.innerHTML = `
-<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-square-minus-icon lucide-square-minus"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M8 12h8"/></svg>
+  const svg = `
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-square-minus-icon lucide-square-minus"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M8 12h8"/></svg>
   `;
-  btn.title = '减小阅读栏宽度';
-  btn.addEventListener('click', () => changeWidth(false));
-  controls.appendChild(btn);
+
+  const btn = createButton('width-decrease-btn', svg, '减宽');
+  if (btn) {
+    btn.className = 'width-control-btn width-decrease-btn readerControls_item'
+    btn.addEventListener('click', () => changeWidth(false));
+  }
 }
 
 // 创建加宽按钮
 function createIncreaseWidthButton() {
-  const controls = document.querySelector('.readerControls');
-  if (!controls || controls.querySelector('.width-increase-btn')) return;
-
-  const btn = document.createElement('button');
-  btn.className = 'width-control-btn width-increase-btn readerControls_item';
-  btn.innerHTML = `
-<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-square-plus-icon lucide-square-plus"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M8 12h8"/><path d="M12 8v8"/></svg>
+  const svg = `
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-square-plus-icon lucide-square-plus"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M8 12h8"/><path d="M12 8v8"/></svg>
   `;
-  btn.title = '增大阅读栏宽度';
-  btn.addEventListener('click', () => changeWidth(true));
-  controls.appendChild(btn);
+
+  const btn = createButton('width-increase-btn', svg, '加宽');
+  if (btn) {
+    btn.className = 'width-control-btn width-increase-btn readerControls_item'
+    btn.addEventListener('click', () => changeWidth(true));
+  }
 }
 
 // 判断是否为深色模式
