@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WeRead 自动滚动阅读
 // @namespace    http://tampermonkey.net/
-// @version      1.0
+// @version      1.1
 // @description  在微信读书网页版侧边栏新增"自动滚动"按钮，点击后页面会以设定速度自动向下滚动，再次点击暂停
 // @author       你
 // @match        https://weread.qq.com/*
@@ -11,255 +11,52 @@
 // @resource     myImage https://gitee.com/StitchHu/images/raw/master/6891758361297_.pic.jpg
 // ==/UserScript==
 
-const url = GM_getResourceURL("myImage");
-const url1 = GM_getResourceURL("myImage1");
-const url2 = GM_getResourceURL("myImage2");
-const url3 = GM_getResourceURL("myImage3");
-
 (function () {
   'use strict';
-//==============================
-// ============公共类：控制栏按钮创建=================
-//==============================
-function createButton(btn_class_name, svg_url, btn_tips) {
-  const controls = document.querySelector('.readerControls');
-  if (!controls || controls.querySelector('.' + btn_class_name)) return null;
 
-  // 创建容器
-  const wr_tooltip_container = document.createElement('div');
-  wr_tooltip_container.className = 'wr_tooltip_container';
-  wr_tooltip_container.setAttribute('style', '--offset: 6px;');
+  // ==============================
+  // 配置常量
+  // ==============================
+  const CONFIG = {
+    SCROLL_SPEED: 1,
+    INTERVAL_MS: 35,
+    WIDTH_STEP: 100,
+    MIN_WIDTH: 400,
+    MAX_WIDTH: 1300,
+    HIDE_THRESHOLD: 30,
+    HIDE_DISTANCE: 50,
+    SHOW_THRESHOLD: 30,
+    SHOW_DISTANCE: 50
+  };
 
-  // 创建按钮
-  const btn = document.createElement('button');
-  btn.className = btn_class_name + ' readerControls_item';
-  btn.innerHTML = svg_url;
-
-  wr_tooltip_container.appendChild(btn);
-
-  // 创建提示框
-  const tips = document.createElement('div');
-  tips.className = 'wr_tooltip_item wr_tooltip_item--right';
-  tips.style.display = 'none';
-  tips.textContent = btn_tips;
-
-  wr_tooltip_container.appendChild(tips);
-
-  // 添加事件监听器
-  wr_tooltip_container.addEventListener('mouseenter', () => {
-    tips.style.display = 'block'; 
-  });
-  wr_tooltip_container.addEventListener('mouseleave', () => {
-    tips.style.display = 'none';
-  });
-
-  controls.appendChild(wr_tooltip_container);
-  return btn;
-}
-
-
-// 自定义提示系统的CSS样式
-GM_addStyle(`
-  /* 自定义提示框样式 */
-  .custom-tooltip {
-    position: absolute;
-    background: rgba(0, 0, 0, 0.9);
-    color: white;
-    padding: 8px 12px;
-    border-radius: 6px;
-    font-size: 13px;
-    font-weight: 500;
-    white-space: nowrap;
-    z-index: 10000;
-    pointer-events: none;
-    opacity: 0;
-    transform: translateX(10px);
-    transition: all 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-    backdrop-filter: blur(8px);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-  }
-  
-  .custom-tooltip.show {
-    opacity: 1;
-    transform: translateX(0);
-  }
-  
-  /* 提示框箭头 */
-  .custom-tooltip::before {
-    content: '';
-    position: absolute;
-    left: -6px;
-    top: 50%;
-    transform: translateY(-50%);
-    width: 0;
-    height: 0;
-    border-style: solid;
-    border-width: 6px 6px 6px 0;
-    border-color: transparent rgba(0, 0, 0, 0.9) transparent transparent;
-  }
-  
-  /* 深色模式适配 */
-  @media (prefers-color-scheme: dark) {
-    .custom-tooltip {
-      background: rgba(40, 40, 40, 0.95);
-      border: 1px solid rgba(255, 255, 255, 0.2);
-    }
-    .custom-tooltip::before {
-      border-color: transparent rgba(40, 40, 40, 0.95) transparent transparent;
-    }
-  }
-  
-  /* 美化版提示框 */
-  .custom-tooltip.premium {
-    background: linear-gradient(135deg, rgba(0, 0, 0, 0.9) 0%, rgba(40, 40, 40, 0.9) 100%);
-    border: 1px solid rgba(255, 255, 255, 0.15);
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    letter-spacing: 0.3px;
-  }
-`);
-
-// 创建和管理提示框的类
-class CustomTooltip {
-  constructor() {
-    this.tooltip = null;
-    this.showTimeout = null;
-    this.hideTimeout = null;
-  }
-  
-  // 创建提示框元素
-  createTooltip() {
-    if (this.tooltip) return this.tooltip;
-    
-    this.tooltip = document.createElement('div');
-    this.tooltip.className = 'custom-tooltip premium';
-    document.body.appendChild(this.tooltip);
-    return this.tooltip;
-  }
-  
-  // 显示提示框
-  show(element, text, delay = 500) {
-    clearTimeout(this.hideTimeout);
-    
-    this.showTimeout = setTimeout(() => {
-      const tooltip = this.createTooltip();
-      tooltip.textContent = text;
-      
-      // 计算位置
-      const rect = element.getBoundingClientRect();
-      const tooltipWidth = tooltip.offsetWidth;
-      const tooltipHeight = tooltip.offsetHeight;
-      
-      // 基础位置：按钮右侧
-      let left = rect.right + 12;
-      let top = rect.top + (rect.height / 2) - (tooltipHeight / 2);
-      
-      // 边界检测和调整
-      const windowWidth = window.innerWidth;
-      const windowHeight = window.innerHeight;
-      
-      // 右边界检测
-      if (left + tooltipWidth > windowWidth - 10) {
-        left = rect.left - tooltipWidth - 12; // 显示在左侧
-        tooltip.style.setProperty('--arrow-position', 'right');
-      }
-      
-      // 上下边界检测
-      if (top < 10) {
-        top = 10;
-      } else if (top + tooltipHeight > windowHeight - 10) {
-        top = windowHeight - tooltipHeight - 10;
-      }
-      
-      tooltip.style.left = left + 'px';
-      tooltip.style.top = top + 'px';
-      
-      // 显示动画
-      requestAnimationFrame(() => {
-        tooltip.classList.add('show');
-      });
-    }, delay);
-  }
-  
-  // 隐藏提示框
-  hide(delay = 100) {
-    clearTimeout(this.showTimeout);
-    
-    this.hideTimeout = setTimeout(() => {
-      if (this.tooltip) {
-        this.tooltip.classList.remove('show');
-        setTimeout(() => {
-          if (this.tooltip && this.tooltip.parentNode) {
-            this.tooltip.parentNode.removeChild(this.tooltip);
-            this.tooltip = null;
-          }
-        }, 300);
-      }
-    }, delay);
-  }
-}
-
-// 创建全局提示管理器
-const tooltipManager = new CustomTooltip();
-
-// 为元素添加自定义提示的函数
-function addCustomTooltip(element, text) {
-  if (!element) return;
-  
-  // 移除原有的title属性，避免冲突
-  element.removeAttribute('title');
-  
-  element.addEventListener('mouseenter', () => {
-    console.log("mouseenter")
-    tooltipManager.show(element, text);
-  });
-  
-  element.addEventListener('mouseleave', () => {
-    console.log("mouseleave")
-    tooltipManager.hide();
-  });
-  
-  // 当元素被移除时也隐藏提示
-  element.addEventListener('DOMNodeRemoved', () => {
-    tooltipManager.hide(0);
-  });
-}
-
-//==============================
-// ============新增阅读主题按钮=================
-//==============================
-
-  /********************
-   * 配置区：每项都包含背景图和对应字体颜色
-   ********************/
-  const themes = [
+  // 主题配置
+  const THEMES = [
     {
       name: '牛皮纸纹理',
-      url: url1,
-      textColor: '#2D1B15', //字体 深灰色
-      backgroundColor: '#2D2419', //背景 深褐色
-      readerButtonColor: '#4F4F4F', //按钮 
+      url: GM_getResourceURL("myImage1"),
+      textColor: '#2D1B15',
+      backgroundColor: '#2D2419',
+      readerButtonColor: '#4F4F4F',
       fontFamily: 'cejkpx'
     },
     {
       name: '森林绿',
-      url: url2,
-      textColor: '#222222', // 深灰字
-      backgroundColor: '#2D2419', //周围背景 深褐色
-      readerButtonColor: '#4F4F4F', //按钮 
+      url: GM_getResourceURL("myImage2"),
+      textColor: '#222222',
+      backgroundColor: '#2D2419',
+      readerButtonColor: '#4F4F4F',
       fontFamily: 'cejkpx'
     },
-    //纯色背景：无url
     {
       name: '莫兰迪米绿',
-      readerBgColor: '#D6DBBC', //纯色背景
+      readerBgColor: '#D6DBBC',
       textColor: '#474E31',
       backgroundColor: '#C8D6B8',
       readerButtonColor: '#4E7B50',
       fontFamily: 'wr_default_fontspx'
     },
     {
-      name: '复古羊皮纸',
+      name: '古典羊皮纸',
       readerBgColor: '#F5ECD9',
       textColor: '#3A2F24',
       backgroundColor: '#E6D9BC',
@@ -276,863 +73,643 @@ function addCustomTooltip(element, text) {
     }
   ];
 
+  // SVG 图标配置
+  const ICONS = {
+    theme: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m20 13.7-2.1-2.1a2 2 0 0 0-2.8 0L9.7 17"/><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H19a1 1 0 0 1 1 1v18a1 1 0 0 1-1 1H6.5a1 1 0 0 1 0-5H20"/><circle cx="10" cy="8" r="2"/></svg>`,
+    scroll: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v14"/><path d="m19 9-7 7-7-7"/><circle cx="12" cy="21" r="1"/></svg>`,
+    fullscreen: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/><rect width="10" height="8" x="7" y="8" rx="1"/></svg>`,
+    decrease: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M8 12h8"/></svg>`,
+    increase: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M8 12h8"/><path d="M12 8v8"/></svg>`
+  };
 
-  /********************
-   * 阅读主题弹框样式
-   ********************/
-  GM_addStyle(`
-    .bg-select-btn {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      width: 48px;
-      height: 48px;
-      border: none;
-      background: transparent;
-      cursor: pointer;
-      font-size: 18px;
-      border-radius: 50%;
-      transition: all 0.3s ease;
-      color: #868C96; /* 默认颜色 */
-
-    }
-    @media (prefers-color-scheme: dark) {
-      .bg-select-btn { background-color: #1C1C1D !important; }
-    }
-    .bg-select-btn:hover { 
-      color: #212832; /* 微信读书的深灰色 */
-    }
-    
-    /* 遮罩层 */
-    .bg-overlay {
-      position: fixed;
-      top: 0; 
-      left: 0; 
-      right: 0; 
-      bottom: 0;
-      background: rgba(0, 0, 0, 0.6);
-      z-index: 9998;
-      backdrop-filter: blur(4px);
-      animation: fadeIn 0.3s ease;
-    }
-    
-    /* 弹窗主体 */
-    .bg-modal {
-      position: fixed;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      background: #ffffff;
-      border-radius: 20px;
-      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(255, 255, 255, 0.1);
-      padding: 32px;
-      z-index: 9999;
-      width: 90%;
-      max-width: 540px;
-      max-height: 80vh;
-      overflow-y: auto;
-      animation: slideIn 0.3s ease;
-    }
-    
-    @media (prefers-color-scheme: dark) {
-      .bg-modal {
-        background: #2a2a2a;
-        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.05);
-      }
-    }
-    
-    /* 弹窗标题 */
-    .bg-modal h3 {
-      margin: 0 0 28px 0;
-      font-size: 22px;
-      font-weight: 600;
-      text-align: center;
-      color: #333;
-      letter-spacing: 0.5px;
-    }
-    
-    @media (prefers-color-scheme: dark) {
-      .bg-modal h3 {
-        color: #fff;
-      }
-    }
-    
-    /* 主题网格 */
-    .bg-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-      gap: 20px;
-      justify-content: center;
-    }
-    
-    /* 主题项 */
-    .bg-item {
-      width: 100%;
-      height: 100px;
-      background-size: cover;
-      background-position: center;
-      border-radius: 12px;
-      cursor: pointer;
-      border: 3px solid transparent;
-      transition: all 0.3s ease;
-      position: relative;
-      overflow: hidden;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-    }
-    
-    .bg-item::before {
-      content: '';
-      position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background: rgba(0, 0, 0, 0);
-      transition: background 0.3s ease;
-      border-radius: 9px;
-    }
-    
-    .bg-item:hover {
-      border-color: #4caf50;
-      transform: translateY(-4px);
-      box-shadow: 0 8px 25px rgba(76, 175, 80, 0.3);
-    }
-    
-    .bg-item:hover::before {
-      background: rgba(76, 175, 80, 0.1);
-    }
-    
-    /* 主题名称标签 */
-    .bg-item::after {
-      content: attr(data-name);
-      position: absolute;
-      bottom: 0;
-      left: 0;
-      right: 0;
-      background: linear-gradient(transparent, rgba(0, 0, 0, 0.8));
-      color: white;
-      padding: 16px 8px 8px;
-      font-size: 12px;
-      font-weight: 500;
-      text-align: center;
-      opacity: 0;
-      transform: translateY(10px);
-      transition: all 0.3s ease;
-    }
-    
-    .bg-item:hover::after {
-      opacity: 1;
-      transform: translateY(0);
-    }
-    
-    /* 关闭按钮 */
-    .bg-close {
-      position: absolute;
-      top: 16px;
-      right: 16px;
-      width: 32px;
-      height: 32px;
-      border: none;
-      background: rgba(0, 0, 0, 0.1);
-      border-radius: 50%;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 18px;
-      color: #666;
-      transition: all 0.3s ease;
-    }
-    
-    .bg-close:hover {
-      background: rgba(255, 0, 0, 0.1);
-      color: #ff4444;
-      transform: scale(1.1);
-    }
-    
-    @media (prefers-color-scheme: dark) {
-      .bg-close {
-        background: rgba(255, 255, 255, 0.1);
-        color: #ccc;
-      }
-      .bg-close:hover {
-        background: rgba(255, 0, 0, 0.2);
-        color: #ff6666;
-      }
-    }
-    
-    /* 动画 */
-    @keyframes fadeIn {
-      from { opacity: 0; }
-      to { opacity: 1; }
-    }
-    
-    @keyframes slideIn {
-      from { 
-        opacity: 0; 
-        transform: translate(-50%, -50%) scale(0.9); 
-      }
-      to { 
-        opacity: 1; 
-        transform: translate(-50%, -50%) scale(1); 
-      }
-    }
-    
-
-    /* 优化的渐变动画 */
-    @keyframes gradientFadeIn {
-      from { 
-        opacity: 0; 
-      }
-      50% {
-        opacity: 1;
-      }
-      to { 
-        opacity: 0; 
-      }
+  // ==============================
+  // 工具类
+  // ==============================
+  class Utils {
+    static addStyle(css) {
+      GM_addStyle(css);
     }
 
-    /* 或者分别定义淡入淡出 */
-    @keyframes gradientFadeInOut {
-      0% { 
-        opacity: 0; 
-        transform: scale(0.98);
-      }
-      30% {
-        opacity: 1;
-        transform: scale(1);
-      }
-      70% {
-        opacity: 1;
-        transform: scale(1);
-      }
-      100% { 
-        opacity: 0; 
-        transform: scale(1.02);
-      }
+    static createElement(tag, className, innerHTML) {
+      const element = document.createElement(tag);
+      if (className) element.className = className;
+      if (innerHTML) element.innerHTML = innerHTML;
+      return element;
     }
 
-    @keyframes fadeOut {
-      from { opacity: 1; }
-      to { opacity: 0; }
+    static debounce(func, wait) {
+      let timeout;
+      return function executedFunction(...args) {
+        const later = () => {
+          clearTimeout(timeout);
+          func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+      };
     }
 
-    @keyframes slideOut {
-      from { 
-        opacity: 1; 
-        transform: translate(-50%, -50%) scale(1); 
-      }
-      to { 
-        opacity: 0; 
-        transform: translate(-50%, -50%) scale(0.95); 
-      }
-    }
-
-    /* 响应式设计 */
-    @media (max-width: 640px) {
-      .bg-modal {
-        padding: 24px;
-        width: 95%;
-        border-radius: 16px;
-      }
-      
-      .bg-modal h3 {
-        font-size: 20px;
-        margin-bottom: 20px;
-      }
-      
-      .bg-grid {
-        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-        gap: 16px;
-      }
-      
-      .bg-item {
-        height: 80px;
-      }
-    }
-  `);
-
-  /********************
-   * 创建按钮
-   ********************/
-  function createBackgroundButton() {
-    const svg = `
-<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-book-image-icon lucide-book-image"><path d="m20 13.7-2.1-2.1a2 2 0 0 0-2.8 0L9.7 17"/><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H19a1 1 0 0 1 1 1v18a1 1 0 0 1-1 1H6.5a1 1 0 0 1 0-5H20"/><circle cx="10" cy="8" r="2"/></svg>
-      `
-    const btn = createButton('bg-select-btn', svg, '切换主题');
-    if (btn) {
-      btn.addEventListener('click', openModal);
+    static getCurrentValue(element, property) {
+      const value = window.getComputedStyle(element)[property];
+      return parseInt(value.replace('px', '')) || 0;
     }
   }
 
-  /********************
-   * 弹框逻辑
-   ********************/
-  function openModal() {
-    // 创建遮罩层
-    const overlay = document.createElement('div');
-    overlay.className = 'bg-overlay';
-    overlay.addEventListener('click', closeModal);
+  // ==============================
+  // 按钮管理类
+  // ==============================
+  class ButtonManager {
+    constructor() {
+      this.buttons = new Map();
+    }
 
-    // 创建弹窗
-    const modal = document.createElement('div');
-    modal.className = 'bg-modal';
-    
-    // 添加关闭按钮
-    const closeBtn = document.createElement('button');
-    closeBtn.className = 'bg-close';
-    closeBtn.innerHTML = '×';
-    closeBtn.addEventListener('click', closeModal);
-    modal.appendChild(closeBtn);
-    
-    // 添加标题
-    const title = document.createElement('h3');
-    title.textContent = '选择阅读主题';
-    modal.appendChild(title);
+    create(config) {
+      const controls = document.querySelector('.readerControls');
+      if (!controls || controls.querySelector('.' + config.className)) return null;
 
-    // 创建主题网格
-    const grid = document.createElement('div');
-    grid.className = 'bg-grid';
+      const container = Utils.createElement('div', 'wr_tooltip_container');
+      container.setAttribute('style', '--offset: 6px;');
 
-    themes.forEach((theme, index) => {
-      const item = document.createElement('div');
-      item.className = 'bg-item';
-      item.setAttribute('data-name', theme.name);
-      if(theme.url){
-        item.style.backgroundImage = `url(${theme.url})`;
-      }else{
-        item.style.backgroundColor = theme.readerBgColor;
+      const btn = Utils.createElement('button', `${config.className} readerControls_item`, config.icon);
+      const tooltip = Utils.createElement('div', 'wr_tooltip_item wr_tooltip_item--right', config.tooltip);
+      tooltip.style.display = 'none';
+
+      container.appendChild(btn);
+      container.appendChild(tooltip);
+
+      // 添加悬停效果
+      container.addEventListener('mouseenter', () => tooltip.style.display = 'block');
+      container.addEventListener('mouseleave', () => tooltip.style.display = 'none');
+
+      if (config.onClick) {
+        btn.addEventListener('click', config.onClick);
       }
-      item.addEventListener('click', () => {
-        applyTheme(theme);
-        closeModal();
-        GM_setValue('currentTheme', theme); // 保存主题
-        location.reload(); // 刷新页面
+
+      controls.appendChild(container);
+      this.buttons.set(config.className, btn);
+      return btn;
+    }
+
+    get(className) {
+      return this.buttons.get(className);
+    }
+  }
+
+  // ==============================
+  // 自动滚动管理类
+  // ==============================
+  class ScrollManager {
+    constructor() {
+      this.scrolling = false;
+      this.scrollTimer = null;
+    }
+
+    start() {
+      if (this.scrolling) return;
+      this.scrolling = true;
+      this.scrollTimer = setInterval(() => {
+        window.scrollBy(0, CONFIG.SCROLL_SPEED);
+      }, CONFIG.INTERVAL_MS);
+    }
+
+    stop() {
+      this.scrolling = false;
+      if (this.scrollTimer) {
+        clearInterval(this.scrollTimer);
+        this.scrollTimer = null;
+      }
+    }
+
+    toggle(button) {
+      if (this.scrolling) {
+        this.stop();
+        button.classList.remove('active');
+        button.title = '开始自动滚动';
+      } else {
+        this.start();
+        button.classList.add('active');
+        button.title = '暂停自动滚动';
+      }
+    }
+  }
+
+  // ==============================
+  // 主题管理类
+  // ==============================
+  class ThemeManager {
+    constructor() {
+      this.currentTheme = GM_getValue('currentTheme', null);
+      this.modal = null;
+    }
+
+    applyTheme(theme) {
+      const content = document.querySelector('.app_content');
+      if (content) {
+        if (theme.url) {
+          content.style.cssText += `
+            background-image: url(${theme.url});
+            background-size: auto;
+            background-position: center top;
+            background-attachment: fixed;
+            background-repeat: repeat;
+            image-rendering: crisp-edges;
+          `;
+        } else if (theme.readerBgColor) {
+          content.style.cssText += `
+            background-image: none;
+            background-color: ${theme.readerBgColor};
+          `;
+        }
+      }
+
+      Utils.addStyle(`
+        .readerChapterContent {
+          color: ${theme.textColor} !important;
+          -webkit-text-fill-color: ${theme.textColor} !important;
+        }
+        .readerContent {
+          background-color: ${theme.backgroundColor};
+        }
+        .readerFooter_button {
+          color: ${theme.readerButtonColor};
+        }
+        .readerHeaderButton {
+          color: ${theme.readerButtonColor};
+        }
+      `);
+    }
+
+    openModal() {
+      if (this.modal) return;
+
+      const overlay = Utils.createElement('div', 'bg-overlay');
+      overlay.addEventListener('click', () => this.closeModal());
+
+      const modal = Utils.createElement('div', 'bg-modal');
+      const closeBtn = Utils.createElement('button', 'bg-close', '×');
+      closeBtn.addEventListener('click', () => this.closeModal());
+      
+      const title = Utils.createElement('h3', '', '选择阅读主题');
+      const grid = Utils.createElement('div', 'bg-grid');
+
+      THEMES.forEach((theme) => {
+        const item = Utils.createElement('div', 'bg-item');
+        item.setAttribute('data-name', theme.name);
+        
+        if (theme.url) {
+          item.style.backgroundImage = `url(${theme.url})`;
+        } else {
+          item.style.backgroundColor = theme.readerBgColor;
+        }
+
+        item.addEventListener('click', () => {
+          this.applyTheme(theme);
+          this.closeModal();
+          GM_setValue('currentTheme', theme);
+          location.reload();
+        });
+
+        grid.appendChild(item);
       });
-      grid.appendChild(item);
-    });
 
-    modal.appendChild(grid);
-    document.body.appendChild(overlay);
-    document.body.appendChild(modal);
-    
-    // 阻止页面滚动
-    document.body.style.overflow = 'hidden';
-  }
+      modal.appendChild(closeBtn);
+      modal.appendChild(title);
+      modal.appendChild(grid);
+      
+      document.body.appendChild(overlay);
+      document.body.appendChild(modal);
+      document.body.style.overflow = 'hidden';
 
-  function closeModal() {
-    const modal = document.querySelector('.bg-modal');
-    const overlay = document.querySelector('.bg-overlay');
-    
-    if (modal && overlay) {
-      // 添加关闭动画
+      this.modal = { modal, overlay };
+    }
+
+    closeModal() {
+      if (!this.modal) return;
+      
+      const { modal, overlay } = this.modal;
       modal.style.animation = 'slideOut 0.4s cubic-bezier(0.4, 0.0, 0.2, 1) forwards';
       overlay.style.animation = 'fadeOut 0.4s cubic-bezier(0.4, 0.0, 0.2, 1) forwards';
       
-      // 为关闭过程添加渐变遮罩效果
-      const closeOverlay = document.createElement('div');
-      closeOverlay.style.cssText = `
-        position: fixed;
-        top: 0; left: 0; right: 0; bottom: 0;
-        background: linear-gradient(
-          45deg, 
-          rgba(76, 175, 80, 0.1) 0%, 
-          rgba(0, 0, 0, 0.3) 50%, 
-          rgba(33, 150, 243, 0.1) 100%
-        );
-        z-index: 9997;
-        pointer-events: none;
-        opacity: 0;
-        animation: gradientFadeInOut 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
-      `;
-      document.body.appendChild(closeOverlay);
-      
-      // 分阶段移除元素，避免卡顿
       setTimeout(() => {
         modal.remove();
         overlay.remove();
+        document.body.style.overflow = '';
+        this.modal = null;
       }, 400);
+    }
+
+    init() {
+      if (this.currentTheme) {
+        this.applyTheme(this.currentTheme);
+      }
+    }
+  }
+
+  // ==============================
+  // 宽度管理类
+  // ==============================
+  class WidthManager {
+    constructor() {
+      this.elements = {
+        content: () => document.querySelector(".readerContent .app_content"),
+        topBar: () => document.querySelector('.readerTopBar'),
+        controls: () => document.querySelector('.readerControls')
+      };
+    }
+
+    changeWidth(increase) {
+      const content = this.elements.content();
+      const topBar = this.elements.topBar();
+      const controls = this.elements.controls();
       
-      // 稍晚移除渐变遮罩，确保完全淡出
-      setTimeout(() => {
-        if (closeOverlay.parentNode) {
-          closeOverlay.remove();
+      if (!content || !topBar) return;
+
+      const currentValue = Utils.getCurrentValue(content, 'maxWidth');
+      const currentMargin = Utils.getCurrentValue(controls, 'marginLeft');
+      
+      let newValue = increase ? 
+        Math.min(currentValue + CONFIG.WIDTH_STEP, CONFIG.MAX_WIDTH) :
+        Math.max(currentValue - CONFIG.WIDTH_STEP, CONFIG.MIN_WIDTH);
+      
+      let newMargin = currentMargin + (newValue - currentValue) / 2;
+
+      content.style.maxWidth = newValue + 'px';
+      topBar.style.maxWidth = newValue + 'px';
+      
+      if (controls) {
+        controls.style.marginLeft = newMargin + 'px';
+        controls.style.transition = 'margin-left 0.3s cubic-bezier(0.4, 0.0, 0.2, 1)';
+      }
+
+      window.dispatchEvent(new Event('resize'));
+      this.updateButtonStates(newValue);
+    }
+
+    updateButtonStates(currentWidth) {
+      const decreaseBtn = document.querySelector('.width-decrease-btn');
+      const increaseBtn = document.querySelector('.width-increase-btn');
+      
+      [decreaseBtn, increaseBtn].forEach(btn => {
+        if (!btn) return;
+        const isDisabled = (btn === decreaseBtn && currentWidth <= CONFIG.MIN_WIDTH) ||
+                          (btn === increaseBtn && currentWidth >= CONFIG.MAX_WIDTH);
+        btn.style.opacity = isDisabled ? '0.5' : '1';
+        btn.style.cursor = isDisabled ? 'not-allowed' : 'pointer';
+      });
+    }
+  }
+
+  // ==============================
+  // 顶部栏自动隐藏类
+  // ==============================
+  class TopBarManager {
+    constructor() {
+      this.lastScrollY = window.scrollY;
+      this.baseScrollY = window.scrollY;
+      this.currentState = 'visible';
+      this.ticking = false;
+    }
+
+    setup() {
+      const topBar = document.querySelector('.readerTopBar');
+      const controls = document.querySelector('.readerControls');
+
+      if (!topBar || !controls) return;
+
+      topBar.style.transition = 'transform 0.3s ease';
+      controls.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
+      controls.style.willChange = 'opacity, transform';
+
+      const onScroll = () => {
+        const currentY = window.scrollY;
+        const scrollDelta = currentY - this.lastScrollY;
+
+        if (scrollDelta > 0) {
+          this.handleDownScroll(currentY, topBar, controls);
+        } else if (scrollDelta < 0) {
+          this.handleUpScroll(currentY, topBar, controls);
         }
-        document.body.style.overflow = ''; // 恢复页面滚动
+
+        this.lastScrollY = currentY;
+        this.ticking = false;
+      };
+
+      window.addEventListener('scroll', () => {
+        if (!this.ticking) {
+          window.requestAnimationFrame(onScroll);
+          this.ticking = true;
+        }
+      });
+    }
+
+    handleDownScroll(currentY, topBar, controls) {
+      if (this.currentState === 'visible' || this.currentState === 'showing') {
+        this.baseScrollY = currentY;
+        this.currentState = 'hiding';
+      }
+
+      if (this.currentState === 'hiding' || this.currentState === 'hidden') {
+        const hideScroll = currentY - this.baseScrollY;
+        if (hideScroll > CONFIG.HIDE_THRESHOLD) {
+          const hideProgress = Math.min((hideScroll - CONFIG.HIDE_THRESHOLD) / CONFIG.HIDE_DISTANCE, 1);
+          topBar.style.transform = `translateY(${-100 * hideProgress}%)`;
+          controls.style.opacity = 1 - hideProgress;
+          controls.style.transform = 'none';
+
+          if (hideProgress >= 1) {
+            this.currentState = 'hidden';
+          }
+        }
+      }
+    }
+
+    handleUpScroll(currentY, topBar, controls) {
+      if (this.currentState === 'hidden' || this.currentState === 'hiding') {
+        this.baseScrollY = currentY;
+        this.currentState = 'showing';
+      }
+
+      if (this.currentState === 'showing' || this.currentState === 'visible') {
+        const showScroll = this.baseScrollY - currentY;
+        if (showScroll > CONFIG.SHOW_THRESHOLD) {
+          const showProgress = Math.min((showScroll - CONFIG.SHOW_THRESHOLD) / CONFIG.SHOW_DISTANCE, 1);
+          const hideProgress = 1 - showProgress;
+          
+          topBar.style.transform = `translateY(${-100 * hideProgress}%)`;
+          controls.style.opacity = 1 - hideProgress;
+          controls.style.transform = 'none';
+
+          if (showProgress >= 1) {
+            this.currentState = 'visible';
+          }
+        }
+      }
+    }
+  }
+
+  // ==============================
+  // 主应用类
+  // ==============================
+  class WeReadEnhancer {
+    constructor() {
+      this.buttonManager = new ButtonManager();
+      this.scrollManager = new ScrollManager();
+      this.themeManager = new ThemeManager();
+      this.widthManager = new WidthManager();
+      this.topBarManager = new TopBarManager();
+      this.observer = null;
+    }
+
+    init() {
+      this.addStyles();
+      this.createButtons();
+      this.setupObserver();
+      this.themeManager.init();
+      
+      // 延迟初始化顶部栏管理器，确保DOM已完全加载
+      setTimeout(() => {
+        this.topBarManager.setup();
       }, 500);
     }
-  }
 
-  // 读取上次选择
-  const currentTheme = GM_getValue('currentTheme', null);
-  console.log('currentTheme:', currentTheme);
-  
-  // 如果有保存的主题 → 在页面加载时应用
-  if (currentTheme) {
-    applyTheme(currentTheme);
-  }
-
-  /********************
-   * 应用背景 + 字体颜色
-   ********************/
-  function applyTheme(theme) {
-    const content = document.querySelector('.app_content');
-    if (content) {
-      if (theme.url) {
-        // 图片背景
-        content.style.backgroundImage = `url(${theme.url})`;
-        content.style.backgroundSize = 'auto';
-        content.style.backgroundPosition = 'center top';
-        content.style.backgroundAttachment = 'fixed';
-        content.style.backgroundRepeat = 'repeat';
-        content.style.imageRendering = 'crisp-edges'; // 保持图像锐利
-        content.style.backgroundColor = ''; // 清空纯色
-      } else if (theme.readerBgColor) {
-        // 纯色背景
-        content.style.backgroundImage = 'none';      // 取消图片
-        content.style.backgroundColor = theme.readerBgColor; // 设置纯色
-      }
-    }
-    GM_addStyle(`
-      .readerChapterContent {
-          color: ${theme.textColor} !important;
-          -webkit-text-fill-color: ${theme.textColor} !important;
-      }
-      .readerContent {
-          background-color: ${theme.backgroundColor};
-      }
-    `);
-
-    // 设置按钮字体颜色
-    const footerBtn = document.querySelector('.readerFooter_button');
-    if (footerBtn) {
-      footerBtn.style.color = theme.readerButtonColor;
-    }
-
-    const readerHeaderButton = document.querySelector('.readerHeaderButton');
-    if (readerHeaderButton) {
-      readerHeaderButton.style.color = theme.readerButtonColor;
-    }
-
-    // 切换字体
-    // GM_addStyle("*{font-family: TsangerJinKai05 !important;}");
-  }
-
-
-//==============================
-// ============新增自动滚动按钮=================
-//==============================
-  const SCROLL_SPEED = 1;   // 每次滚动的像素距离
-  const INTERVAL_MS  = 35;  // 滚动间隔（毫秒），数值越小速度越快，20ms≈50帧/秒
-
-  GM_addStyle(`
-    .auto-scroll-btn {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      width: 48px;
-      height: 48px;
-      margin: 0;
-      padding: 0;
-      border: none;
-      background: transparent;
-      cursor: pointer;
-      font-size: 18px;
-      border-radius: 50%;
-      transition: background-color 0.2s;
-      color: #868C96; /* 默认颜色 */
-    }
-    .auto-scroll-btn:hover {
-      color: #212832; /* 悬浮时深灰色 */
-    }
-    .auto-scroll-btn.active {
-      color: #1D88EE /* 滚动时蓝色 */
-    }
-  `);
-
-  /********************
-   * 自动滚动逻辑
-   ********************/
-  let scrolling = false;
-  let scrollTimer = null;
-
-  function startAutoScroll() {
-    if (scrolling) return;
-    scrolling = true;
-    scrollTimer = setInterval(() => {
-      window.scrollBy(0, SCROLL_SPEED);
-    }, INTERVAL_MS);
-  }
-
-  function stopAutoScroll() {
-    scrolling = false;
-    if (scrollTimer) {
-      clearInterval(scrollTimer);
-      scrollTimer = null;
-    }
-  }
-
-  function toggleScroll(button) {
-    if (scrolling) {
-      stopAutoScroll();
-      button.classList.remove('active');
-      button.title = '开始自动滚动';
-    } else {
-      startAutoScroll();
-      button.classList.add('active');
-      button.title = '暂停自动滚动';
-    }
-  }
-
-  /********************
-   * 在阅读工具栏插入按钮
-   ********************/
-  // 创建自动滚动按钮
-  function createAutoScrollButton() {
-    const svg = `
-  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-    <path d="M12 2v14"/>
-    <path d="m19 9-7 7-7-7"/>
-    <circle cx="12" cy="21" r="1"/>
-  </svg>`;
-    
-    const btn = createButton('auto-scroll-btn', svg, '自动滚动');
-    if (btn) {
-      btn.addEventListener('click', () => toggleScroll(btn));
-    }
-  }
-
-//==============================
-// ============新增全屏按钮=================
-//==============================
-
- GM_addStyle(`
-    .full-screen-btn {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      width: 48px;
-      height: 48px;
-      border: none;
-      background: transparent;
-      cursor: pointer;
-      font-size: 18px;
-      border-radius: 50%;
-      transition: all 0.3s ease;
-      color: #868C96; /* 默认颜色 */
-    }
-    @media (prefers-color-scheme: dark) {
-      .full-screen-btn { background-color: #1C1C1D !important; }
-    }
-    .full-screen-btn:hover { 
-      color: #212832; /* 微信读书的深灰色 */    }
- `);
-
-  //==============================
-  // 1.切换全屏按钮
-  //==============================
-  function toggleFullscreen() {
-    if (!document.fullscreenElement) {
-      // 进入全屏
-      document.documentElement.requestFullscreen?.();
-    } else {
-      // 退出全屏
-      document.exitFullscreen?.();
-    }
-  }
-
-// 使用修复后的函数创建全屏按钮
-function createFullscreenButton() {
-  const svg = `
-    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-fullscreen-icon lucide-fullscreen"><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/><rect width="10" height="8" x="7" y="8" rx="1"/>
-        </svg>`;
-  const btn = createButton('full-screen-btn', svg, '沉浸式');
-  if (btn) {
-    btn.addEventListener('click', toggleFullscreen);
-  }
-}
-
-// ==============================
-// 功能：双向渐变的顶部栏滚动隐藏/显示
-// ==============================
-function setupTopBarAutoHide() {
-  const topBar = document.querySelector('.readerTopBar');
-  const controls = document.querySelector('.readerControls');
-
-  if (!topBar) return;
-  if (!controls) return;
-
-  let lastScrollY = window.scrollY;
-  let baseScrollY = window.scrollY; // 基准滚动位置
-  let currentState = 'visible'; // 'visible', 'hiding', 'hidden', 'showing'
-  let ticking = false;
-  
-  const HIDE_THRESHOLD = 30;   // 向下滚动开始隐藏的距离
-  const HIDE_DISTANCE = 50;    // 完全隐藏需要的滚动距离
-  const SHOW_THRESHOLD = 30;    // 向上滚动开始显示的距离
-  const SHOW_DISTANCE = 50;    // 完全显示需要的滚动距离
-
-  // 设置过渡属性:可调节动画效果
-  controls.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
-  topBar.style.transition = 'transform 0.3s ease';
-  controls.style.willChange = 'opacity, transform';
-
-  function onScroll() {
-    const currentY = window.scrollY;
-    const scrollDelta = currentY - lastScrollY;
-    const relativeScroll = currentY - baseScrollY;
-    
-    // 向下滚动逻辑
-    if (scrollDelta > 0) {
-      // 如果当前是显示状态或正在显示，切换到隐藏模式
-      if (currentState === 'visible' || currentState === 'showing') {
-        baseScrollY = currentY;
-        currentState = 'hiding';
-      }
-      
-      // 计算隐藏进度
-      if (currentState === 'hiding' || currentState === 'hidden') {
-        const hideScroll = currentY - baseScrollY;
+    addStyles() {
+      Utils.addStyle(`
+        /* 通用按钮样式 */
+        .readerControls_item {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 48px;
+          height: 48px;
+          border: none;
+          background: transparent;
+          cursor: pointer;
+          font-size: 18px;
+          border-radius: 50%;
+          transition: all 0.3s ease;
+          color: #868C96;
+        }
         
-        if (hideScroll > HIDE_THRESHOLD) {
-          const hideProgress = Math.min((hideScroll - HIDE_THRESHOLD) / HIDE_DISTANCE, 1);
-          
-          // 应用隐藏变换
-          topBar.style.transform = `translateY(${-100 * hideProgress}%)`;
-          // 隐藏进度时
-          controls.style.opacity = 1 - hideProgress;
-          controls.style.transform = 'none';   // 不再水平移动
-          
-          if (hideProgress >= 1) {
-            currentState = 'hidden';
+        .readerControls_item:hover {
+          color: #212832;
+          transform: scale(1.05);
+        }
+        
+        .auto-scroll-btn.active {
+          color: #1D88EE;
+        }
+        
+        .width-control-btn:disabled {
+          opacity: 0.5;
+          cursor: not-allowed;
+        }
+
+        /* 主题选择器样式 */
+        .bg-overlay {
+          position: fixed;
+          top: 0; left: 0; right: 0; bottom: 0;
+          background: rgba(0, 0, 0, 0.6);
+          z-index: 9998;
+          backdrop-filter: blur(4px);
+          animation: fadeIn 0.3s ease;
+        }
+        
+        .bg-modal {
+          position: fixed;
+          top: 50%; left: 50%;
+          transform: translate(-50%, -50%);
+          background: #ffffff;
+          border-radius: 20px;
+          box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+          padding: 32px;
+          z-index: 9999;
+          width: 90%;
+          max-width: 540px;
+          max-height: 80vh;
+          overflow-y: auto;
+          animation: slideIn 0.3s ease;
+        }
+        
+        .bg-modal h3 {
+          margin: 0 0 28px 0;
+          font-size: 22px;
+          font-weight: 600;
+          text-align: center;
+          color: #333;
+        }
+        
+        .bg-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+          gap: 20px;
+        }
+        
+        .bg-item {
+          width: 100%;
+          height: 100px;
+          background-size: cover;
+          background-position: center;
+          border-radius: 12px;
+          cursor: pointer;
+          border: 3px solid transparent;
+          transition: all 0.3s ease;
+          position: relative;
+          overflow: hidden;
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+        
+        .bg-item:hover {
+          border-color: #4caf50;
+          transform: translateY(-4px);
+          box-shadow: 0 8px 25px rgba(76, 175, 80, 0.3);
+        }
+        
+        .bg-item::after {
+          content: attr(data-name);
+          position: absolute;
+          bottom: 0; left: 0; right: 0;
+          background: linear-gradient(transparent, rgba(0, 0, 0, 0.8));
+          color: white;
+          padding: 16px 8px 8px;
+          font-size: 12px;
+          text-align: center;
+          opacity: 0;
+          transform: translateY(10px);
+          transition: all 0.3s ease;
+        }
+        
+        .bg-item:hover::after {
+          opacity: 1;
+          transform: translateY(0);
+        }
+        
+        .bg-close {
+          position: absolute;
+          top: 16px; right: 16px;
+          width: 32px; height: 32px;
+          border: none;
+          background: rgba(0, 0, 0, 0.1);
+          border-radius: 50%;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 18px;
+          color: #666;
+          transition: all 0.3s ease;
+        }
+        
+        .bg-close:hover {
+          background: rgba(255, 0, 0, 0.1);
+          color: #ff4444;
+        }
+
+        /* 动画 */
+        @keyframes fadeIn {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+        
+        @keyframes slideIn {
+          from { opacity: 0; transform: translate(-50%, -50%) scale(0.9); }
+          to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+        }
+        
+        @keyframes fadeOut {
+          from { opacity: 1; }
+          to { opacity: 0; }
+        }
+        
+        @keyframes slideOut {
+          from { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+          to { opacity: 0; transform: translate(-50%, -50%) scale(0.95); }
+        }
+
+        /* 暗色模式适配 */
+        @media (prefers-color-scheme: dark) {
+          .bg-modal {
+            background: #2a2a2a;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+          }
+          .bg-modal h3 {
+            color: #fff;
+          }
+          .bg-close {
+            background: rgba(255, 255, 255, 0.1);
+            color: #ccc;
           }
         }
-      }
+      `);
     }
-    // 向上滚动逻辑
-    else if (scrollDelta < 0) {
-      // 如果当前是隐藏状态或正在隐藏，切换到显示模式
-      if (currentState === 'hidden' || currentState === 'hiding') {
-        baseScrollY = currentY;
-        currentState = 'showing';
-      }
-      
-      // 计算显示进度
-      if (currentState === 'showing' || currentState === 'visible') {
-        const showScroll = baseScrollY - currentY; // 注意：这里是反向计算
-        
-        if (showScroll > SHOW_THRESHOLD) {
-          const showProgress = Math.min((showScroll - SHOW_THRESHOLD) / SHOW_DISTANCE, 1);
-          
-          // 应用显示变换（从隐藏状态逐渐显示）
-          const hideProgress = 1 - showProgress;
-          topBar.style.transform = `translateY(${-100 * hideProgress}%)`;
-          controls.style.opacity = 1 - hideProgress;
-          controls.style.transform = 'none';   // 不再水平移动
-          
-          if (showProgress >= 1) {
-            currentState = 'visible';
+
+    createButtons() {
+      const buttonConfigs = [
+        {
+          className: 'auto-scroll-btn',
+          icon: ICONS.scroll,
+          tooltip: '自动滚动',
+          onClick: () => {
+            const btn = this.buttonManager.get('auto-scroll-btn');
+            this.scrollManager.toggle(btn);
           }
+        },
+        {
+          className: 'bg-select-btn',
+          icon: ICONS.theme,
+          tooltip: '切换主题',
+          onClick: () => this.themeManager.openModal()
+        },
+        {
+          className: 'full-screen-btn',
+          icon: ICONS.fullscreen,
+          tooltip: '沉浸式',
+          onClick: () => {
+            if (!document.fullscreenElement) {
+              document.documentElement.requestFullscreen?.();
+            } else {
+              document.exitFullscreen?.();
+            }
+          }
+        },
+        {
+          className: 'width-decrease-btn',
+          icon: ICONS.decrease,
+          tooltip: '减宽',
+          onClick: () => this.widthManager.changeWidth(false)
+        },
+        {
+          className: 'width-increase-btn',
+          icon: ICONS.increase,
+          tooltip: '加宽',
+          onClick: () => this.widthManager.changeWidth(true)
         }
-      }
+      ];
+
+      buttonConfigs.forEach(config => this.buttonManager.create(config));
     }
-    
-    lastScrollY = currentY;
-    ticking = false;
-  }
 
-  window.addEventListener('scroll', () => {
-    if (!ticking) {
-      window.requestAnimationFrame(onScroll);
-      ticking = true;
-    }
-  });
-}
+    setupObserver() {
+      this.observer = new MutationObserver(Utils.debounce(() => {
+        this.createButtons();
+        // 确保顶部栏管理器重新初始化
+        setTimeout(() => {
+          this.topBarManager.setup();
+        }, 100);
+        if (this.themeManager.currentTheme) {
+          this.themeManager.applyTheme(this.themeManager.currentTheme);
+        }
+      }, 100));
 
-//==============================
-// ============新增阅读栏宽度调节按钮=================
-//==============================
-
-// 宽度调节相关样式
-GM_addStyle(`
-  .width-control-btn {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 48px;
-    height: 48px;
-    border: none;
-    background: transparent;
-    cursor: pointer;
-    font-size: 18px;
-    border-radius: 50%;
-    transition: all 0.3s ease;
-    --default-color: #868C96;
-    --hover-color: #212832;
-    color: var(--default-color);
-  }
-
-  .width-control-btn:hover { 
-    color: var(--hover-color);
-    transform: scale(1.05);
-  }
-
-  .readerControls {
-    transition: margin-left 0.3s cubic-bezier(0.4, 0.0, 0.2, 1) !important;
-  }
-  
-  /* 为极宽屏幕优化 */
-  @media (min-width: 1600px) {
-    .readerControls {
-      /* 在超宽屏幕上可以有更多调整空间 */
-      position: fixed;
+      this.observer.observe(document.body, { 
+        childList: true, 
+        subtree: true 
+      });
     }
   }
-`);
 
-// 获取当前控制栏的 margin-left
-function getCurrentMarginLeft() {
-  const controls = document.querySelector('.readerControls');
-  if (!controls) return 0;
-  
-  const style = window.getComputedStyle(controls);
-  const marginLeft = style.marginLeft;
-  console.log("readerControls-marginLeft:",marginLeft)
-  return parseInt(marginLeft.replace('px', '')) || 0;
-}
-
-// 获取当前宽度调节
-function getCurrentMaxWidth(element) {
-  let currentValue = window.getComputedStyle(element).maxWidth;
-  currentValue = currentValue.substring(0, currentValue.indexOf('px'));
-  currentValue = parseInt(currentValue);
-  return currentValue;
-}
-
-// 修改主界面宽度，同时移动控制栏
-function changeWidth(increase) {
-  const step = 100;
-  const item1 = document.querySelector(".readerContent .app_content");
-  const item2 = document.querySelector('.readerTopBar');
-  
-  if (!item1 || !item2) return;
-  
-  const currentValue = getCurrentMaxWidth(item1);
-  const currentControlMarginLeft = getCurrentMarginLeft();
-
-  console.log("readerContent currentMaxValue:",currentValue);
-  let changedValue;
-  let changeControlMarginLeft;
-  if (increase) {
-    changedValue = currentValue + step;
-    changeControlMarginLeft = currentControlMarginLeft + step/2;
-  } else {
-    changedValue = currentValue - step;
-    changeControlMarginLeft = currentControlMarginLeft - step/2;
-  }
-  
-  const minWidth = 400;
-  const maxWidth = 1300;
-  
-  if (changedValue < minWidth) {
-    changedValue = minWidth;
-    changeControlMarginLeft = currentControlMarginLeft;
-  } else if (changedValue > maxWidth) {
-    changedValue = maxWidth;
-    changeControlMarginLeft = currentControlMarginLeft;
-  }
-  
-  item1.style['max-width'] = changedValue + 'px';
-  item2.style['max-width'] = changedValue + 'px';
-  
-  const myEvent = new Event('resize');
-  window.dispatchEvent(myEvent);
-  
-  updateWidthButtonsState(changedValue, minWidth, maxWidth);
-  
-  // 调整控制栏位置
-  const controls = document.querySelector('.readerControls');
-  if (controls) {
-    controls.style.marginLeft = changeControlMarginLeft + 'px';
-    controls.style.transition = 'margin-left 0.3s cubic-bezier(0.4, 0.0, 0.2, 1)';
-  }
-}
-
-// 更新按钮状态（达到极值时禁用相应按钮）
-function updateWidthButtonsState(currentWidth, minWidth, maxWidth) {
-  const decreaseBtn = document.querySelector('.width-decrease-btn');
-  const increaseBtn = document.querySelector('.width-increase-btn');
-  
-  if (decreaseBtn) {
-    if (currentWidth <= minWidth) {
-      decreaseBtn.style.opacity = '0.5';
-      decreaseBtn.style.cursor = 'not-allowed';
-    } else {
-      decreaseBtn.style.opacity = '1';
-      decreaseBtn.style.cursor = 'pointer';
-    }
-  }
-  
-  if (increaseBtn) {
-    if (currentWidth >= maxWidth) {
-      increaseBtn.style.opacity = '0.5';
-      increaseBtn.style.cursor = 'not-allowed';
-    } else {
-      increaseBtn.style.opacity = '1';
-      increaseBtn.style.cursor = 'pointer';
-    }
-  }
-}
-
-function createDecreaseWidthButton() {
-  const svg = `
-  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-square-minus-icon lucide-square-minus"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M8 12h8"/></svg>
-  `;
-
-  const btn = createButton('width-decrease-btn', svg, '减宽');
-  if (btn) {
-    btn.className = 'width-control-btn width-decrease-btn readerControls_item'
-    btn.addEventListener('click', () => changeWidth(false));
-  }
-}
-
-// 创建加宽按钮
-function createIncreaseWidthButton() {
-  const svg = `
-  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-square-plus-icon lucide-square-plus"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M8 12h8"/><path d="M12 8v8"/></svg>
-  `;
-
-  const btn = createButton('width-increase-btn', svg, '加宽');
-  if (btn) {
-    btn.className = 'width-control-btn width-increase-btn readerControls_item'
-    btn.addEventListener('click', () => changeWidth(true));
-  }
-}
-
-// 判断是否为深色模式
-function isDarkMode() {
-  const darkModeButton = document.querySelector(
-    ".readerControls_item.white, .readerControls_item.dark"
-  );
-  return darkModeButton && darkModeButton.classList.contains("white");
-}
-
-// ==============================
-// 监听页面变化，确保在页面内容最后一次变化后，能重新加载自定义内容：
-// 1.添加的按钮能出现
-// 2.实现顶部栏收缩与展示
-// 3.重置背景与字体
-// ==============================
-  const observer = new MutationObserver(() => {
-    createAutoScrollButton();
-    createBackgroundButton();
-    createFullscreenButton();
-    createIncreaseWidthButton();  
-    createDecreaseWidthButton();
-    setupTopBarAutoHide();
-    if (currentTheme) {
-      applyTheme(currentTheme); 
-    }
-  });
-  observer.observe(document.body, { childList: true, subtree: true });
+  // ==============================
+  // 启动应用
+  // ==============================
+  const app = new WeReadEnhancer();
+  app.init();
 })();
