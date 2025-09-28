@@ -18,7 +18,7 @@
   // 配置常量
   // ==============================
   const CONFIG = {
-    SCROLL_SPEED: 1,
+    SCROLL_SPEED: 1, //滚动速度
     INTERVAL_MS: 35,
     WIDTH_STEP: 100,
     MIN_WIDTH: 400,
@@ -104,11 +104,11 @@
       readerButtonColor: '#8AA9FF',
       darkEnable: false,
     },
-    {
-      name: '默认主题',
-      isDefault: true,
-      darkEnable: true,
-    }
+    // {
+    //   name: '默认主题',
+    //   isDefault: true,
+    //   darkEnable: true,
+    // }
   ];
 
   // SVG 图标配置
@@ -278,10 +278,10 @@
     }
     applyTheme(theme) {
       // 如果是默认主题，清除所有自定义样式
-      if (theme.isDefault) {
-        this.clearCustomStyles();
-        return;
-      }
+      // if (theme.isDefault) {
+      //   this.clearCustomStyles();
+      //   return;
+      // }
 
       const content = this.getTargetElement();
 
@@ -358,8 +358,8 @@
       // 添加深色模式按钮监听，当非深色模式可用主题时，点击按钮清空样式
       document.addEventListener('click', (event) => {
         // 检查点击的是否是深色模式按钮
-        if (event.target.closest('button.readerControls_item.white')) {
-          console.log('检测到深色模式按钮点击');
+        if (event.target.closest('button.readerControls_item.white') && !this.currentTheme.darkEnable) {
+          console.log('检测到深色模式按钮点击,且当前主题不支持深色模式！');
           // 延迟执行，确保微信阅读的模式切换完成
           setTimeout(() => {
             this.clearCustomStyles();
@@ -393,64 +393,127 @@
       location.reload();
     }
 
-    openModal() {
-      if (this.modal) return;
+  openModal() {
+    if (this.modal) return;
 
-      const overlay = Utils.createElement('div', 'bg-overlay');
-      overlay.addEventListener('click', () => this.closeModal());
+    const isDarkMode = Utils.isDarkMode();
+    
+    const overlay = Utils.createElement('div', 'bg-overlay');
+    overlay.addEventListener('click', () => this.closeModal());
 
-      const modal = Utils.createElement('div', 'bg-modal');
-      const closeBtn = Utils.createElement('button', 'bg-close', '×');
-      closeBtn.addEventListener('click', () => this.closeModal());
+    const modal = Utils.createElement('div', 'bg-modal');
+    const closeBtn = Utils.createElement('button', 'bg-close', '×');
+    closeBtn.addEventListener('click', () => this.closeModal());
+    
+    const title = Utils.createElement('h3', '', '选择阅读主题');
+    
+    // 添加当前模式提示
+    // const modeIndicator = Utils.createElement('div', 'theme-mode-indicator', 
+    //   `当前模式: ${isDarkMode ? '深色模式' : '浅色模式'}`);
+    
+    const grid = Utils.createElement('div', 'bg-grid');
+
+    THEMES.forEach((theme) => {
+      const item = Utils.createElement('div', 'bg-item');
+      item.setAttribute('data-name', theme.name);
       
-      const title = Utils.createElement('h3', '', '选择阅读主题');
-      const grid = Utils.createElement('div', 'bg-grid');
+      // 检查主题在当前模式下是否可用
+      const isEnabled = isDarkMode ? theme.darkEnable : true;
+      
+      if (!isEnabled) {
+        item.classList.add('disabled');
+      }
+      
+      if (theme.url) {
+        item.style.backgroundImage = `url(${theme.url})`;
+      } else if (theme.readerBgColor) {
+        item.style.backgroundColor = theme.readerBgColor;
+      }
 
-      THEMES.forEach((theme) => {
-        const item = Utils.createElement('div', 'bg-item');
-        item.setAttribute('data-name', theme.name);
-        
-        if (theme.url) {
-          item.style.backgroundImage = `url(${theme.url})`;
-        } else {
-          item.style.backgroundColor = theme.readerBgColor;
+      // 添加禁用状态的视觉反馈
+      if (!isEnabled) {
+        const disabledOverlay = Utils.createElement('div', 'disabled-overlay');
+        const disabledText = Utils.createElement('div', 'disabled-text', 
+          `${isDarkMode ? '深色模式' : '浅色模式'}不支持`);
+        disabledOverlay.appendChild(disabledText);
+        item.appendChild(disabledOverlay);
+      }
+
+      // 添加当前选中的主题标记
+      if (this.currentTheme && this.currentTheme.name === theme.name) {
+        item.classList.add('selected');
+        const selectedMark = Utils.createElement('div', 'selected-mark', '✓');
+        item.appendChild(selectedMark);
+      }
+
+      item.addEventListener('click', () => {
+        if (!isEnabled) {
+          // 显示提示信息
+          this.showDisabledTooltip(item, `此主题在${isDarkMode ? '深色' : '浅色'}模式下不可用`);
+          return;
         }
-
-        item.addEventListener('click', () => {
-          GM_setValue('currentTheme', theme);
-          location.reload();
-          // this.applyTheme(theme);
-          // this.closeModal();
-        });
-
-        grid.appendChild(item);
+        
+        GM_setValue('currentTheme', theme);
+        location.reload();
       });
 
-      modal.appendChild(closeBtn);
-      modal.appendChild(title);
-      modal.appendChild(grid);
-      
-      document.body.appendChild(overlay);
-      document.body.appendChild(modal);
-      document.body.style.overflow = 'hidden';
+      grid.appendChild(item);
+    });
 
-      this.modal = { modal, overlay };
-    }
+    // 添加重置按钮
+    const resetBtn = Utils.createElement('button', 'theme-reset-btn', '恢复默认主题');
+    resetBtn.addEventListener('click', () => {
+      GM_setValue('currentTheme', null);
+      location.reload();
+    });
 
-    closeModal() {
-      if (!this.modal) return;
-      
-      const { modal, overlay } = this.modal;
-      modal.style.animation = 'slideOut 0.4s cubic-bezier(0.4, 0.0, 0.2, 1) forwards';
-      overlay.style.animation = 'fadeOut 0.4s cubic-bezier(0.4, 0.0, 0.2, 1) forwards';
-      
+    modal.appendChild(closeBtn);
+    modal.appendChild(title);
+    // modal.appendChild(modeIndicator);
+    modal.appendChild(grid);
+    modal.appendChild(resetBtn);
+    
+    document.body.appendChild(overlay);
+    document.body.appendChild(modal);
+    document.body.style.overflow = 'hidden';
+
+    this.modal = { modal, overlay };
+  }
+
+  // 显示禁用主题的提示
+  showDisabledTooltip(element, message) {
+    const tooltip = Utils.createElement('div', 'disabled-tooltip', message);
+    element.appendChild(tooltip);
+    
+    setTimeout(() => {
+      tooltip.classList.add('show');
+    }, 10);
+
+    setTimeout(() => {
+      tooltip.classList.remove('show');
       setTimeout(() => {
-        modal.remove();
-        overlay.remove();
-        document.body.style.overflow = '';
-        this.modal = null;
-      }, 400);
-    }
+        if (tooltip.parentNode) {
+          tooltip.parentNode.removeChild(tooltip);
+        }
+      }, 300);
+    }, 2000);
+  }
+
+  closeModal() {
+    if (!this.modal) return;
+    
+    const { modal, overlay } = this.modal;
+    modal.style.animation = 'slideOut 0.4s cubic-bezier(0.4, 0.0, 0.2, 1) forwards';
+    overlay.style.animation = 'fadeOut 0.4s cubic-bezier(0.4, 0.0, 0.2, 1) forwards';
+    
+    setTimeout(() => {
+      modal.remove();
+      overlay.remove();
+      document.body.style.overflow = '';
+      this.modal = null;
+    }, 400);
+  }
+
 
     init() {
       if (this.currentTheme) {
@@ -1008,7 +1071,7 @@ const FONT_WEIGHT_POPUP_STYLES = `
           cursor: not-allowed;
         }
 
-        /* 主题选择器样式 */
+        /* 主题选择器增强样式 */
         .bg-overlay {
           position: fixed;
           top: 0; left: 0; right: 0; bottom: 0;
@@ -1028,29 +1091,41 @@ const FONT_WEIGHT_POPUP_STYLES = `
           padding: 32px;
           z-index: 9999;
           width: 90%;
-          max-width: 540px;
+          max-width: 600px;
           max-height: 80vh;
           overflow-y: auto;
           animation: slideIn 0.3s ease;
         }
         
         .bg-modal h3 {
-          margin: 0 0 28px 0;
+          margin: 0 0 16px 0;
           font-size: 22px;
           font-weight: 600;
           text-align: center;
           color: #333;
         }
+
+        // .theme-mode-indicator {
+        //   text-align: center;
+        //   margin-bottom: 24px;
+        //   padding: 8px 16px;
+        //   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        //   color: white;
+        //   border-radius: 20px;
+        //   font-size: 14px;
+        //   font-weight: 500;
+        // }
         
         .bg-grid {
           display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+          grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
           gap: 20px;
+          margin-bottom: 24px;
         }
         
         .bg-item {
           width: 100%;
-          height: 100px;
+          height: 120px;
           background-size: cover;
           background-position: center;
           border-radius: 12px;
@@ -1061,11 +1136,91 @@ const FONT_WEIGHT_POPUP_STYLES = `
           overflow: hidden;
           box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
         }
-        
-        .bg-item:hover {
+
+        .bg-item:not(.disabled):hover {
           border-color: #4caf50;
           transform: translateY(-4px);
           box-shadow: 0 8px 25px rgba(76, 175, 80, 0.3);
+        }
+
+        .bg-item.selected {
+          border-color: #2196F3;
+          box-shadow: 0 4px 20px rgba(33, 150, 243, 0.4);
+        }
+
+        .bg-item.disabled {
+          cursor: not-allowed;
+          // opacity: 0.8;
+          filter: grayscale(0.8);
+        }
+
+        .bg-item.disabled:hover {
+          transform: none;
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        .disabled-overlay {
+          position: absolute;
+          top: 0; left: 0; right: 0; bottom: 0;
+          background: rgba(0, 0, 0, 0.7);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          opacity: 0;
+          transition: opacity 0.3s ease;
+        }
+
+        .bg-item.disabled:hover .disabled-overlay {
+          opacity: 1;
+        }
+
+        .disabled-text {
+          color: white;
+          font-size: 12px;
+          text-align: center;
+          padding: 4px 8px;
+          background: rgba(255, 255, 255, 0.2);
+          border-radius: 4px;
+          backdrop-filter: blur(4px);
+        }
+
+        .selected-mark {
+          position: absolute;
+          top: 8px;
+          right: 8px;
+          width: 24px;
+          height: 24px;
+          background: #2196F3;
+          color: white;
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 14px;
+          font-weight: bold;
+          box-shadow: 0 2px 8px rgba(33, 150, 243, 0.4);
+        }
+
+        .disabled-tooltip {
+          position: absolute;
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%);
+          background: rgba(244, 67, 54, 0.95);
+          color: white;
+          padding: 8px 12px;
+          border-radius: 6px;
+          font-size: 12px;
+          white-space: nowrap;
+          opacity: 0;
+          transition: all 0.3s ease;
+          z-index: 10;
+          pointer-events: none;
+        }
+
+        .disabled-tooltip.show {
+          opacity: 1;
+          transform: translate(-50%, -50%) scale(1);
         }
         
         .bg-item::after {
@@ -1081,10 +1236,31 @@ const FONT_WEIGHT_POPUP_STYLES = `
           transform: translateY(10px);
           transition: all 0.3s ease;
         }
-        
-        .bg-item:hover::after {
+
+        .bg-item:not(.disabled):hover::after {
           opacity: 1;
           transform: translateY(0);
+          background: #ABABAB
+        }
+
+        .theme-reset-btn {
+          width: 100%;
+          padding: 12px;
+          background: #F4F5F7;
+          color: white;
+          border: none;
+          border-radius: 8px;
+          font-size: 14px;
+          font-weight: 500;
+          cursor: pointer;
+          transition: all 0.3s ease;
+          color: #202832
+        }
+
+        .theme-reset-btn:hover {
+          background: #E2E3E5;
+          transform: translateY(-2px);
+          color: #202832
         }
         
         .bg-close {
@@ -1092,7 +1268,7 @@ const FONT_WEIGHT_POPUP_STYLES = `
           top: 16px; right: 16px;
           width: 32px; height: 32px;
           border: none;
-          background: rgba(0, 0, 0, 0.1);
+          background: #F4F5F7;
           border-radius: 50%;
           cursor: pointer;
           display: flex;
@@ -1104,8 +1280,9 @@ const FONT_WEIGHT_POPUP_STYLES = `
         }
         
         .bg-close:hover {
-          background: rgba(255, 0, 0, 0.1);
-          color: #ff4444;
+          background: #E2E3E5;
+          transform: translateY(-2px);
+          color: #202832;
         }
 
         /* 动画 */
@@ -1193,9 +1370,11 @@ const FONT_WEIGHT_POPUP_STYLES = `
         //滚动模式按钮多，防止溢出
         //TODO
         Utils.addStyle(`
-            .readerControls {
-              top: 5% !important;
-            }
+          .readerControls {
+            top: 5% !important;
+          }
+          .readerControls>* {
+            margin-bottom: 15px;
           }
         `);
       } else {
