@@ -1,15 +1,20 @@
 // ==UserScript==
-// @name         WeRead 自动滚动阅读
+// @name         WeReadBetter-享阅（微信阅读美化）
 // @namespace    http://tampermonkey.net/
-// @version      1.1
-// @description  在微信读书网页版侧边栏新增"自动滚动"按钮，点击后页面会以设定速度自动向下滚动，再次点击暂停
-// @author       你
+// @icon         https://weread.qq.com/favicon.ico
+// @version      1.0.0
+// @description  为微信读书打造的全能美化工具：多主题切换、自动滚屏、字体调节、页面优化。提升阅读体验，让每次阅读都是视觉享受。
+// @author       StitchHu
 // @match        https://weread.qq.com/*
+// @grant        GM_addStyle
+// @grant        GM_getResourceURL
 // @grant        GM_setValue
 // @grant        GM_getValue
-// @grant        GM_getResourceURL
-// @resource     myImage https://gitee.com/StitchHu/images/raw/master/6891758361297_.pic.jpg
-// ==/UserScript==
+// @resource     BG01 https://gitee.com/StitchHu/images/raw/master/%E7%BA%B8%E7%BA%B93.jpg
+// @resource     BG02 https://gitee.com/StitchHu/images/raw/master/v2-447c911b784d2d70b7df4e332e887489_r.jpg
+// @resource     BG03 https://gitee.com/StitchHu/images/raw/master/%E8%83%8C%E6%99%AF-%E7%BA%A2%E8%8A%B1.jpg
+// @resource     BG04 https://gitee.com/StitchHu/images/raw/master/%E8%83%8C%E6%99%AF-%E8%BF%9C%E5%B1%B1.jpg
+// @resource     BG05 https://gitee.com/StitchHu/images/raw/master/pexels-artempodrez-7233124.jpg
 
 (function () {
   'use strict';
@@ -44,6 +49,24 @@
       darkEnable: false,
     },
     {
+      name: '花笺诗韵',
+      url: GM_getResourceURL("BG03"),
+      textColor: '#2F3D2A',   // 深绿棕色，呼应背景的自然感
+      backgroundColor: '#CDD3C0',  // 稍深的绿米色
+      readerButtonColor: '#6B7A5F', // 温和的绿灰色
+      underlineColor: '#8A9B7A',     // 柔和的绿色划线
+      darkEnable: false,
+    },
+    {
+      name: '水墨清韵',
+      url: GM_getResourceURL("BG04"),  
+      textColor: '#2C3E50',   
+      backgroundColor: '#D5D8DC', 
+      readerButtonColor: '#5D6D7E',
+      underlineColor: '#85929E',   
+      darkEnable: false,
+    },
+    {
       name: '古典羊皮纸',
       readerBgColor: '#F5ECD9',
       textColor: '#3A2F24',
@@ -61,24 +84,13 @@
       darkEnable: true,
     },
     {
-      name: '水墨清韵',
-      url: GM_getResourceURL("BG04"),  // 使用图片背景
-      textColor: '#2C3E50',   // 深蓝灰色，与背景协调
-      backgroundColor: '#D5D8DC',  // 稍深的灰蓝色作为周围背景
-      readerButtonColor: '#5D6D7E', // 中性蓝灰色按钮
-      fontFamily: 'wr_default_fontspx',
-      underlineColor: '#85929E',     // 柔和的蓝灰色划线
-      darkEnable: false,
-    },
-    {
-      name: '花笺诗韵',
-      url: GM_getResourceURL("BG03"),
-      textColor: '#2F3D2A',   // 深绿棕色，呼应背景的自然感
-      backgroundColor: '#CDD3C0',  // 稍深的绿米色
-      readerButtonColor: '#6B7A5F', // 温和的绿灰色
-      fontFamily: 'wr_default_fontspx',
-      underlineColor: '#8A9B7A',     // 柔和的绿色划线
-      darkEnable: false,
+      name: '暖阳书香',
+      readerBgColor: '#FDF6E3',
+      textColor: '#8B4513',
+      backgroundColor: '#F4E4BC',
+      readerButtonColor: '#CD853F',
+      underlineColor: '#DEB887',
+      darkEnable: false    
     },
     {
       name: '春山茶纸',
@@ -1035,6 +1047,7 @@ const FONT_WEIGHT_POPUP_STYLES = `
       setTimeout(() => {
         // this.topBarManager.setup();
         this.createButtons();
+        // this.fontWeightSliderManager.init();
       }, 500);
       Utils.isDarkMode();
     }
