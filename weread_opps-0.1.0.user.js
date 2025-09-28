@@ -26,34 +26,22 @@
     HIDE_THRESHOLD: 30,
     HIDE_DISTANCE: 50,
     SHOW_THRESHOLD: 30,
-    SHOW_DISTANCE: 50
+    SHOW_DISTANCE: 50,
+    // 新增字体粗细配置
+    FONT_WEIGHTS: [300, 400, 500, 600, 700], // 可选的字体粗细值
+    DEFAULT_FONT_WEIGHT: 400 // 默认字体粗细
   };
 
   // 主题配置
   const THEMES = [
     {
       name: '牛皮纸纹理',
-      url: GM_getResourceURL("myImage1"),
+      url: GM_getResourceURL("BG01"),
       textColor: '#2D1B15',
       backgroundColor: '#2D2419',
-      readerButtonColor: '#4F4F4F',
-      fontFamily: 'cejkpx'
-    },
-    {
-      name: '森林绿',
-      url: GM_getResourceURL("myImage2"),
-      textColor: '#222222',
-      backgroundColor: '#2D2419',
-      readerButtonColor: '#4F4F4F',
-      fontFamily: 'cejkpx'
-    },
-    {
-      name: '莫兰迪米绿',
-      readerBgColor: '#D6DBBC',
-      textColor: '#474E31',
-      backgroundColor: '#C8D6B8',
-      readerButtonColor: '#4E7B50',
-      fontFamily: 'wr_default_fontspx'
+      readerButtonColor: '#4F4F4F', 
+      underlineColor: '#2D2419',
+      darkEnable: false,
     },
     {
       name: '古典羊皮纸',
@@ -61,15 +49,65 @@
       textColor: '#3A2F24',
       backgroundColor: '#E6D9BC',
       readerButtonColor: '#B48A5A',
-      fontFamily: 'wr_default_fontspx'
+      darkEnable: false,
     },
     {
-      name: '暗夜柔灰',
+      name: '暮色森林',
+      readerBgColor: '#404F37',
+      textColor: '#D0D0D0',        
+      backgroundColor: '#38442F',   
+      readerButtonColor: '#7B8C6F',
+      underlineColor: '#5A6B4E',
+      darkEnable: true,
+    },
+    {
+      name: '水墨清韵',
+      url: GM_getResourceURL("BG04"),  // 使用图片背景
+      textColor: '#2C3E50',   // 深蓝灰色，与背景协调
+      backgroundColor: '#D5D8DC',  // 稍深的灰蓝色作为周围背景
+      readerButtonColor: '#5D6D7E', // 中性蓝灰色按钮
+      fontFamily: 'wr_default_fontspx',
+      underlineColor: '#85929E',     // 柔和的蓝灰色划线
+      darkEnable: false,
+    },
+    {
+      name: '花笺诗韵',
+      url: GM_getResourceURL("BG03"),
+      textColor: '#2F3D2A',   // 深绿棕色，呼应背景的自然感
+      backgroundColor: '#CDD3C0',  // 稍深的绿米色
+      readerButtonColor: '#6B7A5F', // 温和的绿灰色
+      fontFamily: 'wr_default_fontspx',
+      underlineColor: '#8A9B7A',     // 柔和的绿色划线
+      darkEnable: false,
+    },
+    {
+      name: '春山茶纸',
+      readerBgColor: '#D6DBBC',
+      textColor: '#474E31',
+      backgroundColor: '#C8D6B8',
+      readerButtonColor: '#4E7B50',
+      darkEnable: false,
+    },
+    {
+      name: '雾霾灰调',
+      readerBgColor: '#DEDEE3',
+      textColor: '#2A2A2E',
+      backgroundColor: '#EAEAEF',
+      readerButtonColor: '#DEDEE',
+      darkEnable: false,
+    },
+    {
+      name: '静夜寂黑',
       readerBgColor: '#2E2E2E',
       textColor: '#EAEAEA',
       backgroundColor: '#242424',
       readerButtonColor: '#8AA9FF',
-      fontFamily: 'wr_default_fontspx'
+      darkEnable: false,
+    },
+    {
+      name: '默认主题',
+      isDefault: true,
+      darkEnable: true,
     }
   ];
 
@@ -79,7 +117,9 @@
     scroll: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v14"/><path d="m19 9-7 7-7-7"/><circle cx="12" cy="21" r="1"/></svg>`,
     fullscreen: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/><rect width="10" height="8" x="7" y="8" rx="1"/></svg>`,
     decrease: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M8 12h8"/></svg>`,
-    increase: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M8 12h8"/><path d="M12 8v8"/></svg>`
+    increase: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M8 12h8"/><path d="M12 8v8"/></svg>`,
+    fontWeight: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 4h8a4 4 0 0 1 4 4 4 4 0 0 1-4 4H6z"/><path d="M6 12h9a4 4 0 0 1 4 4 4 4 0 0 1-4 4H6z"/></svg>`
+
   };
 
   // ==============================
@@ -113,8 +153,31 @@
       const value = window.getComputedStyle(element)[property];
       return parseInt(value.replace('px', '')) || 0;
     }
-  }
 
+    // 判断当前阅读模式
+    static getReaderMode() {
+      const horizontalReader = document.querySelector(
+        ".readerControls_item.isHorizontalReader"
+      );
+      const normalReader = document.querySelector(
+        ".readerControls_item.isNormalReader"
+      );
+      //normal为上下滚动阅读模式，会展示“isNormalReader”
+      //horizontal表示水平双栏阅读模式
+      return normalReader ? "normal" : "horizontal";
+    }
+    // 判断是否为深色模式
+    static isDarkMode() {
+      // 方法1: 检查深色模式按钮的类名状态
+      const darkButton = document.querySelector('.readerControls_item.white');
+      if (darkButton) {
+        console.log("当前为深色模式！")
+        return true;
+      }
+      console.log("当前为浅色模式！")
+      return false;
+    }
+  }
   // ==============================
   // 按钮管理类
   // ==============================
@@ -202,8 +265,26 @@
       this.modal = null;
     }
 
+    // 获取应用背景色的目标元素
+    getTargetElement() {
+      const mode = Utils.getReaderMode();
+      if (mode === "normal") {
+        //上下
+        return document.querySelector(".app_content");
+      } else {
+        //水平
+        return document.querySelector(".readerChapterContent");
+      }
+    }
     applyTheme(theme) {
-      const content = document.querySelector('.app_content');
+      // 如果是默认主题，清除所有自定义样式
+      if (theme.isDefault) {
+        this.clearCustomStyles();
+        return;
+      }
+
+      const content = this.getTargetElement();
+
       if (content) {
         if (theme.url) {
           content.style.cssText += `
@@ -222,21 +303,94 @@
         }
       }
 
-      Utils.addStyle(`
-        .readerChapterContent {
-          color: ${theme.textColor} !important;
-          -webkit-text-fill-color: ${theme.textColor} !important;
+      if (Utils.getReaderMode() === "normal"){
+        //针对上下模式的容器
+        Utils.addStyle(`
+          .readerChapterContent {
+            color: ${theme.textColor} !important;
+          }
+          .readerContent {
+            background-color: ${theme.backgroundColor};
+          }
+          .readerFooter_button {
+            color: ${theme.readerButtonColor} !important;
+          }
+          .readerHeaderButton {
+            color: ${theme.readerButtonColor} !important;
+          }
+        `);   
+      }else{
+        //针对水平模式的容器
+        let styles = `
+          .readerChapterContent {
+            color: ${theme.textColor} !important;
+          }
+          .readerContent {
+            background-color: ${theme.backgroundColor};
+          }
+          .readerFooter_button {
+            color: ${theme.readerButtonColor} !important;
+          }
+          .readerHeaderButton {
+            color: ${theme.readerButtonColor} !important;
+          }
+          .readerChapterContent_container {
+            color: ${theme.textColor} !important;
+            background-color: ${theme.backgroundColor} !important;
+          }
+          .readerTopBar {
+            background-color: ${theme.backgroundColor} !important;
+          }
+          .renderTargetPageInfo_header_chapterTitle {
+            color: ${theme.textColor} !important;
+          }
+        `;
+        // 划线颜色适配：当主题有配置underlineColor时才添加划线颜色样式
+        if (theme.underlineColor) {
+          styles += `
+          .wr_underline_thought {
+              border-bottom-color: ${theme.underlineColor} !important;
+          }
+          `;
         }
-        .readerContent {
-          background-color: ${theme.backgroundColor};
+        Utils.addStyle(styles);
+      }
+      // 添加深色模式按钮监听，当非深色模式可用主题时，点击按钮清空样式
+      document.addEventListener('click', (event) => {
+        // 检查点击的是否是深色模式按钮
+        if (event.target.closest('button.readerControls_item.white')) {
+          console.log('检测到深色模式按钮点击');
+          // 延迟执行，确保微信阅读的模式切换完成
+          setTimeout(() => {
+            this.clearCustomStyles();
+          }, 150);
         }
-        .readerFooter_button {
-          color: ${theme.readerButtonColor};
-        }
-        .readerHeaderButton {
-          color: ${theme.readerButtonColor};
-        }
-      `);
+      });
+    }
+
+    // 默认主题：清除自定义样式的方法
+    clearCustomStyles() {
+      // 移除所有自定义添加的样式标签
+      const customStyles = document.querySelectorAll('style[id*="GM_"], style[id="font-weight-style"]');
+      customStyles.forEach(style => style.remove());
+      
+      // 清除内联样式
+      const content = this.getTargetElement();
+      if (content) {
+        content.style.cssText = '';
+      }
+      
+      // 重置body背景
+      const body = document.querySelector('body');
+      if (body) {
+        body.style.backgroundColor = '';
+      }
+      
+      // 清除存储的主题和字体粗细
+      GM_setValue('currentTheme', null);
+      GM_setValue('currentFontWeight', 400);
+      console.log('已恢复默认主题');
+      location.reload();
     }
 
     openModal() {
@@ -263,10 +417,10 @@
         }
 
         item.addEventListener('click', () => {
-          this.applyTheme(theme);
-          this.closeModal();
           GM_setValue('currentTheme', theme);
           location.reload();
+          // this.applyTheme(theme);
+          // this.closeModal();
         });
 
         grid.appendChild(item);
@@ -360,7 +514,7 @@
   }
 
   // ==============================
-  // 顶部栏自动隐藏类
+  // 顶部栏及控制栏自动隐藏类
   // ==============================
   class TopBarManager {
     constructor() {
@@ -368,6 +522,10 @@
       this.baseScrollY = window.scrollY;
       this.currentState = 'visible';
       this.ticking = false;
+
+      // 双栏模式下控制
+      this.hideTimer = null;
+      this.mouseInside = false;
     }
 
     setup() {
@@ -380,26 +538,33 @@
       controls.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
       controls.style.willChange = 'opacity, transform';
 
-      const onScroll = () => {
-        const currentY = window.scrollY;
-        const scrollDelta = currentY - this.lastScrollY;
+      if(Utils.getReaderMode() !== "horizontal"){
+        //单栏
+        const onScroll = () => {
+          const currentY = window.scrollY;
+          const scrollDelta = currentY - this.lastScrollY;
 
-        if (scrollDelta > 0) {
-          this.handleDownScroll(currentY, topBar, controls);
-        } else if (scrollDelta < 0) {
-          this.handleUpScroll(currentY, topBar, controls);
-        }
+          if (scrollDelta > 0) {
+            this.handleDownScroll(currentY, topBar, controls);
+          } else if (scrollDelta < 0) {
+            this.handleUpScroll(currentY, topBar, controls);
+          }
 
-        this.lastScrollY = currentY;
-        this.ticking = false;
-      };
+          this.lastScrollY = currentY;
+          this.ticking = false;
+        };
 
-      window.addEventListener('scroll', () => {
-        if (!this.ticking) {
-          window.requestAnimationFrame(onScroll);
-          this.ticking = true;
-        }
-      });
+        window.addEventListener('scroll', () => {
+          if (!this.ticking) {
+            window.requestAnimationFrame(onScroll);
+            this.ticking = true;
+          }
+        });      
+      }else{
+        // ==== 双栏模式：3s 自动隐藏 + 悬停渐显 ====
+        this.setupHorizontalMode(controls);
+      }
+
     }
 
     handleDownScroll(currentY, topBar, controls) {
@@ -445,7 +610,344 @@
         }
       }
     }
+
+    /* ---------- 双栏模式专用 ---------- */
+    setupHorizontalMode(controls) {
+      // 初次进入 3 秒后隐藏
+      this.startHideTimer(controls);
+
+      // 鼠标进入控制栏：立刻显示并清除定时器
+      controls.addEventListener('mouseenter', () => {
+        this.mouseInside = true;
+        this.showControls(controls);
+        this.clearHideTimer();
+      });
+
+      // 鼠标离开控制栏：3 秒后隐藏
+      controls.addEventListener('mouseleave', () => {
+        this.mouseInside = false;
+        this.startHideTimer(controls);
+      });
+    }
+
+    startHideTimer(controls) {
+      this.clearHideTimer();
+      this.hideTimer = setTimeout(() => {
+        if (!this.mouseInside) {
+          this.hideControls(controls);
+        }
+      }, 3000); // 3 秒
+    }
+
+    clearHideTimer() {
+      if (this.hideTimer) {
+        clearTimeout(this.hideTimer);
+        this.hideTimer = null;
+      }
+    }
+
+    hideControls(controls) {
+      controls.style.opacity = '0';
+      // controls.style.transform = 'translateX(40px)';
+      // controls.style.pointerEvents = 'none';
+    }
+
+    showControls(controls) {
+      controls.style.opacity = '1';
+      // controls.style.transform = 'translateX(0)';
+      // controls.style.pointerEvents = 'auto';
+    }
   }
+
+// ==============================
+// 字体粗细滑块管理类 - 带悬浮框的字体粗细调节
+// ==============================
+class FontWeightSliderManager {
+  constructor() {
+    // 从存储中获取当前字体粗细，默认为400
+    this.currentWeight = GM_getValue('currentFontWeight', 400);
+    this.popup = null; // 悬浮框引用
+    this.isPopupVisible = false;
+  }
+
+  /**
+   * 创建字体粗细调节悬浮框
+   * @param {HTMLElement} button - 触发按钮元素，用于定位悬浮框
+   * @returns {HTMLElement} 悬浮框元素
+   */
+  createPopup(button) {
+    // 创建悬浮框容器
+    const popup = Utils.createElement('div', 'font-weight-popup');
+    
+    // 创建标题
+    const title = Utils.createElement('div', 'font-weight-title', '字体粗细');
+    
+    // 创建滑块容器
+    const sliderContainer = Utils.createElement('div', 'font-weight-slider-container');
+    
+    // 创建左侧标签（细）
+    const leftLabel = Utils.createElement('span', 'font-weight-label left', 'A');
+    leftLabel.style.fontWeight = '300';
+    
+    // 创建滑块
+    const slider = Utils.createElement('input', 'font-weight-slider');
+    slider.type = 'range';
+    slider.min = '300';
+    slider.max = '700';
+    slider.step = '100';
+    slider.value = this.currentWeight;
+    
+    // 创建右侧标签（粗）
+    const rightLabel = Utils.createElement('span', 'font-weight-label right', 'A');
+    rightLabel.style.fontWeight = '700';
+    
+    // 创建当前值显示
+    const valueDisplay = Utils.createElement('div', 'font-weight-value');
+    this.updateValueDisplay(valueDisplay, this.currentWeight);
+    
+    // 组装滑块容器
+    sliderContainer.appendChild(leftLabel);
+    sliderContainer.appendChild(slider);
+    sliderContainer.appendChild(rightLabel);
+    
+    // 组装悬浮框
+    popup.appendChild(title);
+    popup.appendChild(sliderContainer);
+    popup.appendChild(valueDisplay);
+    
+    // 绑定滑块事件
+    slider.addEventListener('input', (e) => {
+      const weight = parseInt(e.target.value);
+      this.currentWeight = weight;
+      this.updateValueDisplay(valueDisplay, weight);
+      this.applyFontWeight(weight);
+      GM_setValue('currentFontWeight', weight);
+      location.reload();
+    });
+    
+    // 定位悬浮框
+    this.positionPopup(popup, button);
+    
+    return popup;
+  }
+
+  /**
+   * 更新值显示
+   * @param {HTMLElement} valueDisplay - 值显示元素
+   * @param {number} weight - 字体粗细值
+   */
+  updateValueDisplay(valueDisplay, weight) {
+    const weightNames = {
+      300: '细体',
+      400: '正常',
+      500: '中等',
+      600: '半粗',
+      700: '粗体'
+    };
+    valueDisplay.textContent = weightNames[weight] || `${weight}`;
+  }
+
+  /**
+   * 定位悬浮框
+   * @param {HTMLElement} popup - 悬浮框元素
+   * @param {HTMLElement} button - 按钮元素
+   */
+  positionPopup(popup, button) {
+    const buttonRect = button.getBoundingClientRect();
+    
+    // 设置悬浮框位置（在按钮左侧）
+    popup.style.position = 'fixed';
+    popup.style.right = (window.innerWidth - buttonRect.left + 10) + 'px';
+    popup.style.top = (buttonRect.top - 10) + 'px';
+    popup.style.zIndex = '10000';
+  }
+
+  /**
+   * 应用字体粗细样式
+   * @param {number} weight - 字体粗细值
+   */
+  applyFontWeight(weight) {
+    const mode = Utils.getReaderMode();
+    
+    // 移除之前的样式
+    const existingStyle = document.querySelector('#font-weight-style');
+    if (existingStyle) {
+      existingStyle.remove();
+    }
+    
+    // 创建新的样式
+    const style = document.createElement('style');
+    style.id = 'font-weight-style';
+    
+    if (mode === "normal") {
+      // 上下滚动模式
+      style.textContent = `
+        .readerChapterContent {
+          font-weight: ${weight} !important;
+        }
+      `;
+    } else {
+      // 水平双栏模式
+      style.textContent = `
+        .readerChapterContent,
+        .readerChapterContent_container {
+          font-weight: ${weight} !important;
+        }
+      `;
+    }
+    
+    document.head.appendChild(style);
+  }
+
+  /**
+   * 显示悬浮框
+   * @param {HTMLElement} button - 触发按钮
+   */
+  showPopup(button) {
+    if (this.isPopupVisible) {
+      this.hidePopup();
+      return;
+    }
+
+    // 创建悬浮框
+    this.popup = this.createPopup(button);
+    document.body.appendChild(this.popup);
+    this.isPopupVisible = true;
+
+    // 点击其他地方关闭悬浮框
+    setTimeout(() => {
+      document.addEventListener('click', this.handleDocumentClick.bind(this));
+    }, 100);
+  }
+
+  /**
+   * 隐藏悬浮框
+   */
+  hidePopup() {
+    if (this.popup) {
+      this.popup.remove();
+      this.popup = null;
+      this.isPopupVisible = false;
+      document.removeEventListener('click', this.handleDocumentClick.bind(this));
+    }
+  }
+
+  /**
+   * 处理文档点击事件（点击外部关闭悬浮框）
+   * @param {Event} e - 点击事件
+   */
+  handleDocumentClick(e) {
+    if (this.popup && !this.popup.contains(e.target) && 
+        !e.target.closest('.font-weight-btn')) {
+      this.hidePopup();
+    }
+  }
+
+  /**
+   * 初始化字体粗细
+   */
+  init() {
+    this.applyFontWeight(this.currentWeight);
+  }
+}
+
+// 样式定义
+const FONT_WEIGHT_POPUP_STYLES = `
+  /* 字体粗细悬浮框样式 */
+  .font-weight-popup {
+    background: #ffffff;
+    border-radius: 12px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+    padding: 20px;
+    width: 280px;
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    animation: popupFadeIn 0.2s ease-out;
+  }
+
+  .font-weight-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 16px;
+    text-align: center;
+  }
+
+  .font-weight-slider-container {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+
+  .font-weight-label {
+    font-size: 14px;
+    color: #666;
+    min-width: 20px;
+    text-align: center;
+  }
+
+  .font-weight-slider {
+    flex: 1;
+    -webkit-appearance: none;
+    height: 6px;
+    border-radius: 3px;
+    background: #e0e0e0;
+    outline: none;
+    cursor: pointer;
+  }
+
+  .font-weight-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: #1D88EE;
+    cursor: pointer;
+    box-shadow: 0 2px 6px rgba(29, 136, 238, 0.3);
+    transition: all 0.2s ease;
+  }
+
+  .font-weight-slider::-webkit-slider-thumb:hover {
+    transform: scale(1.1);
+    box-shadow: 0 4px 12px rgba(29, 136, 238, 0.4);
+  }
+
+  .font-weight-slider::-moz-range-thumb {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: #1D88EE;
+    cursor: pointer;
+    border: none;
+    box-shadow: 0 2px 6px rgba(29, 136, 238, 0.3);
+    transition: all 0.2s ease;
+  }
+
+  .font-weight-value {
+    text-align: center;
+    font-size: 14px;
+    color: #1D88EE;
+    font-weight: 600;
+    padding: 8px 16px;
+    background: rgba(29, 136, 238, 0.1);
+    border-radius: 8px;
+  }
+
+  @keyframes popupFadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(-10px) scale(0.95);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+  }
+`;
+
+
 
   // ==============================
   // 主应用类
@@ -457,19 +959,21 @@
       this.themeManager = new ThemeManager();
       this.widthManager = new WidthManager();
       this.topBarManager = new TopBarManager();
+      this.fontWeightSliderManager = new FontWeightSliderManager();
       this.observer = null;
     }
 
     init() {
       this.addStyles();
-      this.createButtons();
       this.setupObserver();
-      this.themeManager.init();
-      
+      // this.themeManager.init();
+      this.fontWeightSliderManager.init();
       // 延迟初始化顶部栏管理器，确保DOM已完全加载
       setTimeout(() => {
-        this.topBarManager.setup();
+        // this.topBarManager.setup();
+        this.createButtons();
       }, 500);
+      Utils.isDarkMode();
     }
 
     addStyles() {
@@ -624,33 +1128,19 @@
           from { opacity: 1; transform: translate(-50%, -50%) scale(1); }
           to { opacity: 0; transform: translate(-50%, -50%) scale(0.95); }
         }
-
-        /* 暗色模式适配 */
-        @media (prefers-color-scheme: dark) {
-          .bg-modal {
-            background: #2a2a2a;
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
-          }
-          .bg-modal h3 {
-            color: #fff;
-          }
-          .bg-close {
-            background: rgba(255, 255, 255, 0.1);
-            color: #ccc;
-          }
-        }
       `);
+      Utils.addStyle(FONT_WEIGHT_POPUP_STYLES);
     }
 
     createButtons() {
-      const buttonConfigs = [
+      const basicButtonConfigs = [
         {
-          className: 'auto-scroll-btn',
-          icon: ICONS.scroll,
-          tooltip: '自动滚动',
+          className: 'font-weight-btn',
+          icon: ICONS.fontWeight,
+          tooltip: '字体粗细',
           onClick: () => {
-            const btn = this.buttonManager.get('auto-scroll-btn');
-            this.scrollManager.toggle(btn);
+            const btn = this.buttonManager.get('font-weight-btn');
+            this.fontWeightSliderManager.showPopup(btn);
           }
         },
         {
@@ -671,27 +1161,54 @@
             }
           }
         },
-        {
-          className: 'width-decrease-btn',
-          icon: ICONS.decrease,
-          tooltip: '减宽',
-          onClick: () => this.widthManager.changeWidth(false)
+      ];
+      //滚动模式独有的按钮
+      const normalButtonConfigs = [
+        { 
+          className: 'auto-scroll-btn',
+          icon: ICONS.scroll,
+          tooltip: '自动滚动',
+          onClick: () => {
+            const btn = this.buttonManager.get('auto-scroll-btn');
+            this.scrollManager.toggle(btn);
+          }
         },
         {
           className: 'width-increase-btn',
           icon: ICONS.increase,
           tooltip: '加宽',
           onClick: () => this.widthManager.changeWidth(true)
+        },
+        {
+          className: 'width-decrease-btn',
+          icon: ICONS.decrease,
+          tooltip: '减宽',
+          onClick: () => this.widthManager.changeWidth(false)
         }
-      ];
+      ]
 
+      let buttonConfigs;
+      if (Utils.getReaderMode() === "normal") {
+        buttonConfigs = basicButtonConfigs.concat(normalButtonConfigs);
+        //滚动模式按钮多，防止溢出
+        //TODO
+        Utils.addStyle(`
+            .readerControls {
+              top: 5% !important;
+            }
+          }
+        `);
+      } else {
+        buttonConfigs = basicButtonConfigs;
+      }
       buttonConfigs.forEach(config => this.buttonManager.create(config));
+
     }
 
     setupObserver() {
       this.observer = new MutationObserver(Utils.debounce(() => {
-        this.createButtons();
-        // 确保顶部栏管理器重新初始化
+        // this.createButtons();
+        // 确保顶部栏管理器重新初始化relo
         setTimeout(() => {
           this.topBarManager.setup();
         }, 100);
