@@ -611,7 +611,7 @@
 
       topBar.style.transition = 'transform 0.3s ease';
       controls.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
-      controls.style.willChange = 'opacity, transform';
+      // controls.style.willChange = 'opacity, transform';
 
       if(Utils.getReaderMode() !== "horizontal"){
         //单栏
@@ -634,6 +634,10 @@
             window.requestAnimationFrame(onScroll);
             this.ticking = true;
           }
+        });
+        // 鼠标进入控制栏：立刻显示并清除定时器
+        controls.addEventListener('mouseenter', () => {
+          controls.style.opacity = '1';
         });      
       }else{
         // ==== 双栏模式：3s 自动隐藏 + 悬停渐显 ====
@@ -653,8 +657,9 @@
         if (hideScroll > CONFIG.HIDE_THRESHOLD) {
           const hideProgress = Math.min((hideScroll - CONFIG.HIDE_THRESHOLD) / CONFIG.HIDE_DISTANCE, 1);
           topBar.style.transform = `translateY(${-100 * hideProgress}%)`;
-          controls.style.opacity = 1 - hideProgress;
-          controls.style.transform = 'none';
+          controls.style.opacity = '0';
+          // controls.style.opacity = 1 - hideProgress;
+          // controls.style.transform = 'none';
 
           if (hideProgress >= 1) {
             this.currentState = 'hidden';
@@ -676,8 +681,9 @@
           const hideProgress = 1 - showProgress;
           
           topBar.style.transform = `translateY(${-100 * hideProgress}%)`;
-          controls.style.opacity = 1 - hideProgress;
-          controls.style.transform = 'none';
+          controls.style.opacity = '1';
+          // controls.style.opacity = 1 - hideProgress;
+          // controls.style.transform = 'none';
 
           if (showProgress >= 1) {
             this.currentState = 'visible';
