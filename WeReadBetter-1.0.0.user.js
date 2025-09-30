@@ -1,11 +1,11 @@
 // ==UserScript==
 // @name         WeReadBetter-享阅（微信阅读美化）
-// @namespace    http://tampermonkey.net/
 // @icon         https://weread.qq.com/favicon.ico
-// @version      1.0.0
+// @version      20250929
 // @description  为微信读书打造的全能美化工具：多主题切换、自动滚屏、字体调节、页面优化。提升阅读体验，让每次阅读都是视觉享受。
 // @author       StitchHu
 // @match        https://weread.qq.com/*
+// @license      MIT
 // @grant        GM_addStyle
 // @grant        GM_getResourceURL
 // @grant        GM_setValue
@@ -15,29 +15,59 @@
 // @resource     BG03 https://gitee.com/StitchHu/images/raw/master/%E8%83%8C%E6%99%AF-%E7%BA%A2%E8%8A%B1.jpg
 // @resource     BG04 https://gitee.com/StitchHu/images/raw/master/%E8%83%8C%E6%99%AF-%E8%BF%9C%E5%B1%B1.jpg
 // @resource     BG05 https://gitee.com/StitchHu/images/raw/master/pexels-artempodrez-7233124.jpg
+// ==/UserScript==
 
 (function () {
   'use strict';
 
-  // ==============================
-  // 配置常量
+// ==============================
+  // 📝 基础功能配置 - 可根据个人喜好调整
   // ==============================
   const CONFIG = {
-    SCROLL_SPEED: 1, //滚动速度
-    INTERVAL_MS: 35,
-    WIDTH_STEP: 100,
-    MIN_WIDTH: 400,
-    MAX_WIDTH: 1300,
-    HIDE_THRESHOLD: 30,
-    HIDE_DISTANCE: 50,
-    SHOW_THRESHOLD: 30,
-    SHOW_DISTANCE: 50,
-    // 新增字体粗细配置
-    FONT_WEIGHTS: [300, 400, 500, 600, 700], // 可选的字体粗细值
-    DEFAULT_FONT_WEIGHT: 400 // 默认字体粗细
+    // 🚀 自动滚动配置
+    SCROLL_SPEED: 1,     // 自动滚动速度：数值越大滚动越快，建议范围 1-5
+    INTERVAL_MS: 35,     // 滚动间隔毫秒数：数值越小滚动越流畅，建议范围 20-50
+    
+    // 📏 阅读栏宽度配置
+    WIDTH_STEP: 100,     // 每次点击加宽/减宽的像素数：建议范围 50-200
+    MIN_WIDTH: 400,      // 阅读栏最小宽度：防止过窄影响阅读体验
+    MAX_WIDTH: 1300,     // 阅读栏最大宽度：防止过宽导致视线跨度过大
+    
+    // 🎯 界面隐藏/显示配置（单栏模式专用）
+    HIDE_THRESHOLD: 30,  // 向下滚动多少像素开始隐藏顶部栏：数值越小越敏感
+    HIDE_DISTANCE: 50,   // 完全隐藏需要的额外滚动距离：数值越大越不容易完全隐藏
+    SHOW_THRESHOLD: 30,  // 向上滚动多少像素开始显示顶部栏：数值越小越敏感
+    SHOW_DISTANCE: 50,   // 完全显示需要的额外滚动距离：数值越大越不容易完全显示
+    
+    // ✍️ 字体粗细配置
+    FONT_WEIGHTS: [300, 400, 500, 600, 700], // 可选择的字体粗细等级
+    DEFAULT_FONT_WEIGHT: 400 // 默认字体粗细：400为标准粗细
   };
 
-  // 主题配置
+  // ==============================
+  // 🎨 主题配色方案 - 自定义你的阅读体验
+  // ==============================
+  // ==============================
+  // 🔧 颜色搭配建议 - 帮助你选择合适的配色
+  // ==============================
+  /*
+   * 📋 主题设计原则：
+   * 1. textColor（正文色）与 readerBgColor（背景色）要有足够对比度
+   * 2. backgroundColor 建议比 readerBgColor 稍深或稍浅，营造层次感
+   * 3. readerButtonColor 建议选择中性色，不要过于鲜艳
+   * 4. underlineColor 可选，用于书友想法划线，建议与主色调协调
+   * 
+   * 🎨 经典配色组合推荐：
+   * - 护眼绿色系：背景 #E8F5E8，文字 #2F4F2F，按钮 #5F7F5F
+   * - 温暖米色系：背景 #F5F5DC，文字 #8B4513，按钮 #CD853F  
+   * - 冷色蓝灰系：背景 #F0F8FF，文字 #2F4F4F，按钮 #708090
+   * - 深色护眼系：背景 #2F2F2F，文字 #E0E0E0，按钮 #8AA9FF
+   * 
+   * 💡 配色工具推荐：
+   * - Adobe Color：https://color.adobe.com/zh/
+   * - Coolors：https://coolors.co/
+   * - 中国色：http://zhongguose.com/
+   */
   const THEMES = [
     {
       name: '牛皮纸纹理',
@@ -51,10 +81,10 @@
     {
       name: '花笺诗韵',
       url: GM_getResourceURL("BG03"),
-      textColor: '#2F3D2A',   // 深绿棕色，呼应背景的自然感
-      backgroundColor: '#CDD3C0',  // 稍深的绿米色
-      readerButtonColor: '#6B7A5F', // 温和的绿灰色
-      underlineColor: '#8A9B7A',     // 柔和的绿色划线
+      textColor: '#2F3D2A',   
+      backgroundColor: '#CDD3C0', 
+      readerButtonColor: '#6B7A5F', 
+      underlineColor: '#8A9B7A',  
       darkEnable: false,
     },
     {
@@ -116,11 +146,16 @@
       readerButtonColor: '#8AA9FF',
       darkEnable: false,
     },
+    // 💡 如需添加自定义主题，请按以下格式添加：
     // {
-    //   name: '默认主题',
-    //   isDefault: true,
-    //   darkEnable: true,
-    // }
+    //   name: '你的主题名称',
+    //   readerBgColor: '#颜色代码',    // 阅读区背景
+    //   textColor: '#颜色代码',       // 正文字体颜色
+    //   backgroundColor: '#颜色代码',  // 页面周围背景色
+    //   readerButtonColor: '#颜色代码', // 按钮颜色
+    //   underlineColor: '#颜色代码',   // 划线颜色
+    //   darkEnable: true/false,       // 是否支持深色模式
+    // },
   ];
 
   // SVG 图标配置
