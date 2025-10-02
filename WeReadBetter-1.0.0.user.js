@@ -40,7 +40,18 @@
     SHOW_DISTANCE: 50,   // 完全显示需要的额外滚动距离：数值越大越不容易完全显示
     
     // ✍️ 字体粗细配置
-    FONT_WEIGHTS: [300, 400, 500, 600, 700], // 可选择的字体粗细等级
+    // 100: '极细',
+    // 200: '特细',
+    // 300: '细体',
+    // 400: '正常',
+    // 500: '中等',
+    // 600: '半粗',
+    // 700: '粗体',
+    // 800: '特粗',
+    // 900: '极粗'
+
+    // FONT_WEIGHTS: [100, 200, 300, 400, 500, 600, 700, 800, 900], // 可选择的字体粗细等级（共9个）
+    FONT_WEIGHTS: [300, 400, 500, 600, 700], // 这里选择了其中5个等级
     DEFAULT_FONT_WEIGHT: 400 // 默认字体粗细：400为标准粗细
   };
 
@@ -389,6 +400,36 @@
             background-color: ${theme.backgroundColor} !important;
           }
           .renderTargetPageInfo_header_chapterTitle {
+            color: ${theme.textColor} !important;
+          }
+          .wr_flyleaf_module_rating_graph_badge_wrapper{
+            color: ${theme.textColor} !important;
+          }
+          .wr_flyleaf_module_rating_stats_item_content{
+            color: ${theme.textColor} !important;
+          }
+          .wr_flyleaf_module_rating_stats_wrapper {
+            color: ${theme.textColor} !important;
+          }
+          .wr_flyleaf_module_rating_stats_item_content {
+            color: ${theme.textColor} !important;
+          }
+          .wr_flyleaf_module_rating_action_button {
+            color: ${theme.textColor} !important;
+          }
+          .wr_whiteTheme .wr_flyleaf_module_rating_stats_wrapper .wr_flyleaf_module_rating_stats_item_label {
+            color: ${theme.textColor} !important;
+          }
+          .wr_flyleaf_module_rating_graph_bar_wrapper {
+            color: ${theme.textColor} !important;
+          }
+          .wr_flyleaf_page wr_flyleaf_page_bookInfo {
+            color: ${theme.textColor} !important;
+          }
+          .wr_whiteTheme .wr_flyleaf_page_bookInfo_author.wr_flyleaf_page_bookInfo_author_clickable {
+            color: ${theme.textColor} !important;
+          }
+          .wr_whiteTheme .wr_flyleaf_module_rating_top_section .wr_flyleaf_module_rating_title {
             color: ${theme.textColor} !important;
           }
         `;
@@ -776,46 +817,43 @@
   }
 
 // ==============================
-// 字体粗细滑块管理类 - 带悬浮框的字体粗细调节
+// 字体粗细滑块管理类 - 支持自定义粗细等级
 // ==============================
 class FontWeightSliderManager {
   constructor() {
-    // 从存储中获取当前字体粗细，默认为400
-    this.currentWeight = GM_getValue('currentFontWeight', 400);
-    this.popup = null; // 悬浮框引用
+    // 从存储中获取当前字体粗细，默认使用配置的默认值
+    this.currentWeight = GM_getValue('currentFontWeight', CONFIG.DEFAULT_FONT_WEIGHT);
+    this.popup = null;
     this.isPopupVisible = false;
+    // 使用配置的字体粗细等级
+    this.fontWeights = CONFIG.FONT_WEIGHTS;
   }
 
   /**
    * 创建字体粗细调节悬浮框
-   * @param {HTMLElement} button - 触发按钮元素，用于定位悬浮框
-   * @returns {HTMLElement} 悬浮框元素
    */
   createPopup(button) {
-    // 创建悬浮框容器
     const popup = Utils.createElement('div', 'font-weight-popup');
-    
-    // 创建标题
     const title = Utils.createElement('div', 'font-weight-title', '字体粗细');
-    
-    // 创建滑块容器
     const sliderContainer = Utils.createElement('div', 'font-weight-slider-container');
     
     // 创建左侧标签（细）
     const leftLabel = Utils.createElement('span', 'font-weight-label left', 'A');
-    leftLabel.style.fontWeight = '300';
+    leftLabel.style.fontWeight = this.fontWeights[0]; // 使用配置的最小值
     
-    // 创建滑块
+    // 创建滑块 - 动态设置范围
     const slider = Utils.createElement('input', 'font-weight-slider');
     slider.type = 'range';
-    slider.min = '300';
-    slider.max = '700';
-    slider.step = '100';
-    slider.value = this.currentWeight;
+    slider.min = '0'; // 使用索引而不是实际值
+    slider.max = String(this.fontWeights.length - 1);
+    slider.step = '1';
+    // 找到当前值在数组中的索引
+    const currentIndex = this.fontWeights.indexOf(this.currentWeight);
+    slider.value = currentIndex >= 0 ? currentIndex : Math.floor(this.fontWeights.length / 2);
     
     // 创建右侧标签（粗）
     const rightLabel = Utils.createElement('span', 'font-weight-label right', 'A');
-    rightLabel.style.fontWeight = '700';
+    rightLabel.style.fontWeight = this.fontWeights[this.fontWeights.length - 1]; // 使用配置的最大值
     
     // 创建当前值显示
     const valueDisplay = Utils.createElement('div', 'font-weight-value');
@@ -831,13 +869,18 @@ class FontWeightSliderManager {
     popup.appendChild(sliderContainer);
     popup.appendChild(valueDisplay);
     
-    // 绑定滑块事件
+    // 绑定滑块事件 - 根据索引获取实际值
     slider.addEventListener('input', (e) => {
-      const weight = parseInt(e.target.value);
+      const index = parseInt(e.target.value);
+      const weight = this.fontWeights[index];
       this.currentWeight = weight;
       this.updateValueDisplay(valueDisplay, weight);
       this.applyFontWeight(weight);
       GM_setValue('currentFontWeight', weight);
+    });
+    
+    // 添加滑块变化完成事件（松开鼠标时）
+    slider.addEventListener('change', () => {
       location.reload();
     });
     
@@ -848,30 +891,37 @@ class FontWeightSliderManager {
   }
 
   /**
-   * 更新值显示
-   * @param {HTMLElement} valueDisplay - 值显示元素
-   * @param {number} weight - 字体粗细值
+   * 更新值显示 - 支持自定义字体粗细值
    */
   updateValueDisplay(valueDisplay, weight) {
+    // 预定义常见的字体粗细名称
     const weightNames = {
+      100: '极细',
+      200: '特细',
       300: '细体',
       400: '正常',
       500: '中等',
       600: '半粗',
-      700: '粗体'
+      700: '粗体',
+      800: '特粗',
+      900: '极粗'
     };
-    valueDisplay.textContent = weightNames[weight] || `${weight}`;
+    
+    // 如果有预定义名称就使用，否则显示数值
+    const displayText = weightNames[weight] || `${weight}`;
+    valueDisplay.textContent = displayText;
+    
+    // 添加当前数值显示
+    if (!weightNames[weight]) {
+      valueDisplay.textContent = `粗细 ${weight}`;
+    }
   }
 
   /**
    * 定位悬浮框
-   * @param {HTMLElement} popup - 悬浮框元素
-   * @param {HTMLElement} button - 按钮元素
    */
   positionPopup(popup, button) {
     const buttonRect = button.getBoundingClientRect();
-    
-    // 设置悬浮框位置（在按钮左侧）
     popup.style.position = 'fixed';
     popup.style.right = (window.innerWidth - buttonRect.left + 10) + 'px';
     popup.style.top = (buttonRect.top - 10) + 'px';
@@ -880,7 +930,6 @@ class FontWeightSliderManager {
 
   /**
    * 应用字体粗细样式
-   * @param {number} weight - 字体粗细值
    */
   applyFontWeight(weight) {
     const mode = Utils.getReaderMode();
@@ -896,14 +945,12 @@ class FontWeightSliderManager {
     style.id = 'font-weight-style';
     
     if (mode === "normal") {
-      // 上下滚动模式
       style.textContent = `
         .readerChapterContent {
           font-weight: ${weight} !important;
         }
       `;
     } else {
-      // 水平双栏模式
       style.textContent = `
         .readerChapterContent,
         .readerChapterContent_container {
@@ -917,7 +964,6 @@ class FontWeightSliderManager {
 
   /**
    * 显示悬浮框
-   * @param {HTMLElement} button - 触发按钮
    */
   showPopup(button) {
     if (this.isPopupVisible) {
@@ -925,12 +971,10 @@ class FontWeightSliderManager {
       return;
     }
 
-    // 创建悬浮框
     this.popup = this.createPopup(button);
     document.body.appendChild(this.popup);
     this.isPopupVisible = true;
 
-    // 点击其他地方关闭悬浮框
     setTimeout(() => {
       document.addEventListener('click', this.handleDocumentClick.bind(this));
     }, 100);
@@ -949,8 +993,7 @@ class FontWeightSliderManager {
   }
 
   /**
-   * 处理文档点击事件（点击外部关闭悬浮框）
-   * @param {Event} e - 点击事件
+   * 处理文档点击事件
    */
   handleDocumentClick(e) {
     if (this.popup && !this.popup.contains(e.target) && 
@@ -963,6 +1006,12 @@ class FontWeightSliderManager {
    * 初始化字体粗细
    */
   init() {
+    // 确保当前值在配置的范围内
+    if (!this.fontWeights.includes(this.currentWeight)) {
+      console.warn(`字体粗细 ${this.currentWeight} 不在配置范围内，使用默认值 ${CONFIG.DEFAULT_FONT_WEIGHT}`);
+      this.currentWeight = CONFIG.DEFAULT_FONT_WEIGHT;
+      GM_setValue('currentFontWeight', this.currentWeight);
+    }
     this.applyFontWeight(this.currentWeight);
   }
 }
@@ -1083,12 +1132,12 @@ const FONT_WEIGHT_POPUP_STYLES = `
       this.addStyles();
       this.setupObserver();
       // this.themeManager.init();
-      this.fontWeightSliderManager.init();
+      // this.fontWeightSliderManager.init();
       // 延迟初始化顶部栏管理器，确保DOM已完全加载
       setTimeout(() => {
         // this.topBarManager.setup();
         this.createButtons();
-        // this.fontWeightSliderManager.init();
+        this.fontWeightSliderManager.init();
       }, 500);
       Utils.isDarkMode();
     }
