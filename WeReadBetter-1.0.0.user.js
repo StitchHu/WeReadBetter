@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         WeReadBetter-享阅（微信阅读美化）
+// @name         WeReadBetter-享阅（微信读书美化）
 // @icon         https://weread.qq.com/favicon.ico
-// @version      20250929
+// @version      20251002
 // @description  为微信读书打造的全能美化工具：多主题切换、自动滚屏、字体调节、页面优化。提升阅读体验，让每次阅读都是视觉享受。
 // @author       StitchHu
 // @match        https://weread.qq.com/*
@@ -11,10 +11,8 @@
 // @grant        GM_setValue
 // @grant        GM_getValue
 // @resource     BG01 https://gitee.com/StitchHu/images/raw/master/%E7%BA%B8%E7%BA%B93.jpg
-// @resource     BG02 https://gitee.com/StitchHu/images/raw/master/v2-447c911b784d2d70b7df4e332e887489_r.jpg
-// @resource     BG03 https://gitee.com/StitchHu/images/raw/master/%E8%83%8C%E6%99%AF-%E7%BA%A2%E8%8A%B1.jpg
-// @resource     BG04 https://gitee.com/StitchHu/images/raw/master/%E8%83%8C%E6%99%AF-%E8%BF%9C%E5%B1%B1.jpg
-// @resource     BG05 https://gitee.com/StitchHu/images/raw/master/pexels-artempodrez-7233124.jpg
+// @resource     BG02 https://gitee.com/StitchHu/images/raw/master/%E8%83%8C%E6%99%AF-%E7%BA%A2%E8%8A%B1.jpg
+// @resource     BG03 https://gitee.com/StitchHu/images/raw/master/%E8%83%8C%E6%99%AF-%E8%BF%9C%E5%B1%B1.jpg
 // ==/UserScript==
 
 (function () {
@@ -91,7 +89,7 @@
     },
     {
       name: '花笺诗韵',
-      url: GM_getResourceURL("BG03"),
+      url: GM_getResourceURL("BG02"),
       textColor: '#2F3D2A',   
       backgroundColor: '#CDD3C0', 
       readerButtonColor: '#6B7A5F', 
@@ -100,7 +98,7 @@
     },
     {
       name: '水墨清韵',
-      url: GM_getResourceURL("BG04"),  
+      url: GM_getResourceURL("BG03"),  
       textColor: '#2C3E50',   
       backgroundColor: '#D5D8DC', 
       readerButtonColor: '#5D6D7E',
